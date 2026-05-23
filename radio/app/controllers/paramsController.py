@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import struct
 import time
 from threading import current_thread
@@ -419,7 +420,12 @@ class ParamsController:
                 # order params alphabetically by param_id
                 ordered_params = sorted(self.params, key=lambda k: k["param_id"])
                 for param in ordered_params:
-                    f.write(f"{param['param_id'].upper()},{param['param_value']}\n")
+                    param_value = param.get("param_value")
+                    if param_value is None:
+                        continue
+
+                    formatted_value = self._formatParamValueForExport(param_value)
+                    f.write(f"{param['param_id'].upper()},{formatted_value}\n")
             return {
                 "success": True,
                 "message": f"Parameters exported successfully to {file_path}",
@@ -430,3 +436,30 @@ class ParamsController:
                 "success": False,
                 "message": f"Failed to export params to file: {e}",
             }
+
+    @staticmethod
+    def _formatParamValueForExport(value: Number) -> str:
+        """
+        Format a numeric param value for file export with stable, human-friendly output.
+
+        - Removes floating-point noise (e.g. 0.100000000134412 -> 0.1)
+        - Removes trailing .0 for integer-like values (e.g. 1.0 -> 1)
+        """
+        if isinstance(value, int):
+            return str(value)
+
+        if isinstance(value, float):
+            if math.isnan(value) or math.isinf(value):
+                return str(value)
+
+            rounded = round(value, 7)
+            if rounded == 0:
+                rounded = 0.0
+
+            nearest_int = round(rounded)
+            if math.isclose(rounded, nearest_int, abs_tol=1e-7):
+                return str(int(nearest_int))
+
+            return f"{rounded:.8f}".rstrip("0").rstrip(".")
+
+        return str(value)

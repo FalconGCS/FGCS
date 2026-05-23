@@ -649,3 +649,37 @@ def test_exportParamsToFile_success(
             if line.strip() != "" and not line.startswith("#")
         ]
     assert lines == expected_lines
+
+
+@pytest.mark.usefixtures("delete_export_files")
+def test_exportParamsToFile_formats_numeric_values(
+    socketio_client: SocketIOTestClient, droneStatus
+) -> None:
+    export_file_path = os.path.join(PARAM_FILES_PATH, "exported_params.parm")
+    droneStatus.state = "params"
+
+    # Inject controlled values that previously exhibited formatting issues.
+    droneStatus.drone.paramsController.params = [
+        {
+            "param_id": "TEST_ONE",
+            "param_value": 1.0,
+            "param_type": mavlink.MAV_PARAM_TYPE_REAL32,
+        },
+        {
+            "param_id": "TEST_TWO",
+            "param_value": 0.100000000134412,
+            "param_type": mavlink.MAV_PARAM_TYPE_REAL32,
+        },
+    ]
+
+    socketio_client.emit("export_params_to_file", {"file_path": export_file_path})
+    socketio_result = socketio_client.get_received()[0]
+
+    assert socketio_result["name"] == "export_params_result"
+    assert socketio_result["args"][0]["success"] is True
+
+    with open(export_file_path, "r") as f:
+        lines = [line.strip() for line in f.readlines() if line.strip()]
+
+    assert "TEST_ONE,1" in lines
+    assert "TEST_TWO,0.1" in lines
