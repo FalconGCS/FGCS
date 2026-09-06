@@ -74,6 +74,8 @@ import {
 } from "../../redux/slices/missionSlice"
 import AddPoiMarkerModal from "../mapComponents/addPoiMarkerModal"
 import ContextMenuSpecificCommandItems from "../mapComponents/contextMenuSpecificCommandItems"
+import KmlLayers from "../mapComponents/kmlLayers"
+import KmlLayersControl from "../mapComponents/kmlLayersControl"
 import POIMarkersContainer from "../mapComponents/poiMarkersContainer"
 
 const tailwindColors = resolveConfig(tailwindConfig).theme.colors
@@ -388,6 +390,8 @@ function MapSectionNonMemo({
         }}
         cursor="default"
       >
+        <KmlLayers />
+
         {/* Show marker on map if the position is set */}
         {position !== null &&
           !isNaN(position?.latitude) &&
@@ -458,6 +462,10 @@ function MapSectionNonMemo({
         />
 
         <POIMarkersContainer />
+
+        <div className="absolute z-30 top-2 left-2">
+          <KmlLayersControl mapRef={passedRef} position="right-start" />
+        </div>
 
         <AddPoiMarkerModal
           modalOpened={addPoiMarkerModalOpened}

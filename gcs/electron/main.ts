@@ -12,6 +12,7 @@ import {
   spawn,
   spawnSync,
 } from "node:child_process"
+import { randomUUID } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 import packageInfo from "../package.json"
@@ -53,7 +54,11 @@ import registerVibeStatusIPC, {
   destroyVibeStatusWindow,
 } from "./modules/vibeStatusWindow"
 import registerVideoIPC, { destroyVideoWindow } from "./modules/videoWindow"
+import createKmlFileManager from "./utils/kmlFileManager"
 import { readParamsFile } from "./utils/paramsFile"
+
+// Largest KML we're willing to read into memory
+const MAX_KML_FILE_SIZE_BYTES = 25 * 1024 * 1024
 
 // Check if required data files exist
 function checkRequiredDataFiles(): {
@@ -807,6 +812,88 @@ app.whenReady().then(() => {
     return {
       success: false,
       error: "No file selected",
+    }
+  })
+
+  const kmlFileManager = createKmlFileManager()
+
+  ipcMain.handle("kml:import", async () => {
+    const window = BrowserWindow.getFocusedWindow()
+    if (!window) {
+      throw new Error("No active window found")
+    }
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(window, {
+      properties: ["openFile", "multiSelections"],
+      filters: [{ name: "KML files", extensions: ["kml"] }],
+    })
+
+    if (canceled || filePaths.length === 0) {
+      return {
+        success: false,
+        error: "No file selected",
+      }
+    }
+
+    // A failure on one file shouldn't abort the whole import, so collect the
+    // errors and let the renderer report them alongside the successes
+    const layers = []
+    const errors = []
+
+    for (const filePath of filePaths) {
+      const name = path.basename(filePath)
+      try {
+        const stats = fs.statSync(filePath)
+        if (stats.size > MAX_KML_FILE_SIZE_BYTES) {
+          errors.push({
+            name,
+            error: `File is too large (${Math.round(stats.size / 1e6)} MB)`,
+          })
+          continue
+        }
+
+        const contents = await fs.promises.readFile(filePath, "utf-8")
+        const entry = await kmlFileManager.addKmlFile(
+          randomUUID(),
+          filePath,
+          contents,
+        )
+        layers.push({ ...entry, contents })
+      } catch (err) {
+        errors.push({
+          name,
+          error: err instanceof Error ? err.message : "Unknown error",
+        })
+      }
+    }
+
+    return {
+      success: layers.length > 0,
+      layers,
+      errors,
+      error: layers.length > 0 ? undefined : "No readable KML files selected",
+    }
+  })
+
+  ipcMain.handle("kml:list", async () => {
+    try {
+      return { success: true, layers: await kmlFileManager.getKmlFiles() }
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Unknown error",
+      }
+    }
+  })
+
+  ipcMain.handle("kml:delete", async (_event, id: string) => {
+    try {
+      return { success: kmlFileManager.deleteKmlFile(id) }
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Unknown error",
+      }
     }
   })
 
