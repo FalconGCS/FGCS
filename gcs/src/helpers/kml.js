@@ -23,6 +23,10 @@ export function getPersistedKmlPresentation() {
     console.log("Failed to parse KML layer presentation from local storage.")
   }
 
+  // Drop anything unusable so a corrupt value doesn't keep being read back on
+  // every startup
+  localStorage.removeItem(KML_PRESENTATION_STORAGE_KEY)
+
   return {}
 }
 

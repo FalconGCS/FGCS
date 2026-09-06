@@ -38,11 +38,17 @@ function KmlLayerTile({ layer, onZoomTo }) {
   const dispatch = useDispatch()
 
   async function deleteLayer() {
+    let result
     try {
-      await window.ipcRenderer.invoke("kml:delete", layer.id)
+      result = await window.ipcRenderer.invoke("kml:delete", layer.id)
     } catch {
       console.log("IPC Call Failed: kml:delete")
       showErrorNotification(`Could not delete ${layer.name}`)
+      return
+    }
+
+    if (result?.error) {
+      showErrorNotification(`Could not delete ${layer.name}: ${result.error}`)
       return
     }
 
@@ -76,7 +82,12 @@ function KmlLayerTile({ layer, onZoomTo }) {
           placeholder="KML colours"
           value={layer.colourOverride ?? ""}
           onChangeEnd={(colour) =>
-            dispatch(setKmlLayerColourOverride({ id: layer.id, colour }))
+            dispatch(
+              setKmlLayerColourOverride({
+                id: layer.id,
+                colour: colour || null,
+              }),
+            )
           }
         />
 

@@ -9,6 +9,7 @@ import {
 import { getPersistedKmlPresentation, parseKmlToLayer } from "./kml"
 import {
   closeLoadingNotification,
+  redColor,
   showErrorNotification,
   showLoadingNotification,
 } from "./notification"
@@ -93,13 +94,23 @@ export function useImportKmlLayers() {
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     const { layers, errors } = await parseKmlFiles(result.layers)
-    dispatch(addKmlLayers(layers))
 
-    closeLoadingNotification(
-      notificationId,
-      "KML loaded",
-      `Added ${layers.length} file${layers.length === 1 ? "" : "s"} to the map`,
-    )
+    if (layers.length === 0) {
+      closeLoadingNotification(
+        notificationId,
+        "No KML loaded",
+        "None of the selected files could be read",
+        { color: redColor },
+      )
+    } else {
+      dispatch(addKmlLayers(layers))
+      closeLoadingNotification(
+        notificationId,
+        "KML loaded",
+        `Added ${layers.length} file${layers.length === 1 ? "" : "s"} to the map`,
+      )
+    }
+
     ;[...(result.errors ?? []), ...errors].forEach(({ name, error }) =>
       showErrorNotification(`Could not import ${name}: ${error}`),
     )
