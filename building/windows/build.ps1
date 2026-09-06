@@ -71,8 +71,10 @@ if (Test-Path .\build) {
 }
 
 # Build with PyInstaller
+# Invoked as a module: pip may install the pyinstaller.exe shim into a Scripts
+# directory that isn't on PATH, and a missing command doesn't set $LASTEXITCODE.
 Write-Output "Running PyInstaller..."
-pyinstaller --clean --noconfirm `
+python -m PyInstaller --clean --noconfirm `
   --paths .\venv\Lib\site-packages\ `
   --add-data=".\venv\Lib\site-packages\pymavlink\message_definitions\:message_definitions" `
   --add-data=".\venv\Lib\site-packages\pymavlink\:pymavlink" `
@@ -88,10 +90,20 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Output "Moving contents of /radio/dist/fgcs_backend to gcs/extras"
+# Only discard the existing extras once the replacement is known to exist,
+# otherwise a failed backend build leaves the installer with no backend.
+if (-not (Test-Path .\dist\fgcs_backend)) {
+  Write-Error "PyInstaller did not produce radio\dist\fgcs_backend"
+  exit 1
+}
 if (Test-Path ..\gcs\extras) {
   Remove-Item -Path ..\gcs\extras -Recurse -Force
 }
 Move-Item .\dist\fgcs_backend\ ..\gcs\extras
+if (-not (Test-Path ..\gcs\extras)) {
+  Write-Error "Failed to move backend to gcs\extras"
+  exit 1
+}
 
 Write-Output "Building frontend"
 Set-Location ../gcs/data
