@@ -11,6 +11,7 @@ import { Commands } from "./spotlight/commandHandler"
 import Toolbar from "./toolbar/toolbar"
 
 // Wrappers
+import { useLoadStoredKmlLayers } from "../helpers/kmlLayers"
 import { SettingsProvider } from "../helpers/settingsProvider"
 import SingleRunWrapper from "./SingleRunWrapper"
 
@@ -42,6 +43,9 @@ export default function AppContent() {
   useEffect(() => {
     dispatch(initSocket())
   }, [])
+
+  // Load previously imported KML overlays for both maps
+  useLoadStoredKmlLayers()
 
   // Send drone state to main for appropriate quit messages
   useEffect(() => {

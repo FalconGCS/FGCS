@@ -65,6 +65,7 @@ import { getContainerPointFromEvent } from "../../helpers/pointer"
 import AddPoiMarkerModal from "../mapComponents/addPoiMarkerModal"
 import ContextMenuSubMenuItem from "../mapComponents/contextMenuSubMenuItem"
 import DrawLineCoordinates from "../mapComponents/drawLineCoordinates"
+import KmlLayers from "../mapComponents/kmlLayers"
 import POIMarkersContainer from "../mapComponents/poiMarkersContainer"
 const tailwindColors = resolveConfig(tailwindConfig).theme.colors
 
@@ -301,6 +302,8 @@ function MapSectionNonMemo({ passedRef, onDragstart, mapId = "dashboard" }) {
         }}
         cursor="default"
       >
+        <KmlLayers />
+
         {/* Show marker on map if the position is set */}
         {position !== null &&
           !isNaN(position?.latitude) &&

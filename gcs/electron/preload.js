@@ -47,6 +47,9 @@ const ALLOWED_INVOKE_CHANNELS = [
   "app:close-statustext-window",
   "app:update-statustext",
   "checklist:open",
+  "kml:import",
+  "kml:list",
+  "kml:delete",
 ]
 
 const ALLOWED_SEND_CHANNELS = [

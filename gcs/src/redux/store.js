@@ -1,7 +1,11 @@
 import { combineSlices, configureStore } from "@reduxjs/toolkit"
 import { defaultDataMessages } from "../helpers/dashboardDefaultDataMessages"
-import heartbeatMonitorMiddleware from "./middleware/heartbeatMonitorMiddleware"
+import {
+  KML_PRESENTATION_STORAGE_KEY,
+  toKmlPresentationConfig,
+} from "../helpers/kml"
 import armedMiddleware from "./middleware/armedMiddleware"
+import heartbeatMonitorMiddleware from "./middleware/heartbeatMonitorMiddleware"
 import socketMiddleware from "./middleware/socketMiddleware"
 import applicationSlice from "./slices/applicationSlice"
 import checklistSlice, { setChecklistItems } from "./slices/checklistSlice"
@@ -24,6 +28,7 @@ import droneInfoSlice, {
   setSelectedDisplayTelemetry,
 } from "./slices/droneInfoSlice"
 import ftpSlice from "./slices/ftpSlice"
+import kmlSlice from "./slices/kmlSlice"
 import logAnalyserSlice, {
   setPersistentColorMap,
 } from "./slices/logAnalyserSlice"
@@ -47,6 +52,7 @@ const rootReducer = combineSlices(
   dashboardSlice,
   ftpSlice,
   simulationParamsSlice,
+  kmlSlice,
 )
 
 export const store = configureStore({
@@ -301,6 +307,7 @@ function mergeSelectedDisplayTelemetryConfigWithDefaults(persistedConfig) {
 }
 
 let prevPersistentColorMap = store.getState().logAnalyser.persistentColorMap
+let prevKmlLayers = store.getState().kml.layers
 
 // Update states when a new message comes in
 store.subscribe(() => {
@@ -427,5 +434,14 @@ store.subscribe(() => {
       currentPersistentColorMap,
     )
     prevPersistentColorMap = currentPersistentColorMap
+  }
+
+  const currentKmlLayers = store_mut.kml.layers
+  if (currentKmlLayers !== prevKmlLayers) {
+    updateJSONLocalStorageIfChanged(
+      KML_PRESENTATION_STORAGE_KEY,
+      toKmlPresentationConfig(currentKmlLayers),
+    )
+    prevKmlLayers = currentKmlLayers
   }
 })

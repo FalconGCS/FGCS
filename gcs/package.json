@@ -43,6 +43,7 @@
     "@tiptap/pm": "^2.11.6",
     "@tiptap/react": "^2.11.6",
     "@tiptap/starter-kit": "^2.11.6",
+    "@tmcw/togeojson": "^7.1.2",
     "@tremor/react": "^3.12.1",
     "@turf/turf": "^7.2.0",
     "bufferutil": "^4.0.9",

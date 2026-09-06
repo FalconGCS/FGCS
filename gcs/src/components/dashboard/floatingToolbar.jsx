@@ -22,6 +22,7 @@ import {
   selectOutsideVisibility,
   setOutsideVisibility,
 } from "../../redux/slices/droneConnectionSlice"
+import KmlLayersControl from "../mapComponents/kmlLayersControl"
 
 export default function FloatingToolbar({
   centerMapOnDrone,
@@ -101,6 +102,8 @@ export default function FloatingToolbar({
           {outsideVisibility ? <IconSun /> : <IconSunOff />}
         </ActionIcon>
       </Tooltip>
+
+      <KmlLayersControl mapRef={mapRef} />
     </div>
   )
 }
