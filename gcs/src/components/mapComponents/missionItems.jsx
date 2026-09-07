@@ -27,11 +27,19 @@ import MarkerPin from "./markerPin"
 import MidpointInsertButton from "./midpointInsertButton"
 
 // Tailwind styling
-import { midpoint, point } from "@turf/turf"
+import { circle, midpoint, point } from "@turf/turf"
+import { Layer, Source } from "react-map-gl"
 import resolveConfig from "tailwindcss/resolveConfig"
 import tailwindConfig from "../../../tailwind.config"
 
 const tailwindColors = resolveConfig(tailwindConfig).theme.colors
+
+const LOITER_RADIUS_PARAMS = {
+  17: "param3", // MAV_CMD_NAV_LOITER_UNLIM
+  18: "param3", // MAV_CMD_NAV_LOITER_TURNS
+  19: "param3", // MAV_CMD_NAV_LOITER_TIME
+  31: "param2", // MAV_CMD_NAV_LOITER_TO_ALT
+}
 
 export default function MissionItems({ missionItems }) {
   const dispatch = useDispatch()
@@ -74,6 +82,23 @@ export default function MissionItems({ missionItems }) {
     () => getListOfLineCoordinates(filteredMissionItems),
     [filteredMissionItems, homePosition, takeoffWaypoint],
   )
+
+  const loiterCircles = useMemo(() => {
+    return displayedMissionItems
+      .filter((item) => item.command in LOITER_RADIUS_PARAMS)
+      .map((item) => {
+        const radius = Math.abs(
+          Number(item[LOITER_RADIUS_PARAMS[item.command]]),
+        )
+        if (!Number.isFinite(radius) || radius === 0) return null
+
+        return circle([intToCoord(item.y), intToCoord(item.x)], radius, {
+          steps: 64,
+          units: "meters",
+        })
+      })
+      .filter(Boolean)
+  }, [displayedMissionItems])
 
   const insertionMidpoints = useMemo(() => {
     if (!editable || missionPathItems.length < 2) return []
@@ -212,6 +237,25 @@ export default function MissionItems({ missionItems }) {
 
   return (
     <>
+      <Source
+        id="loiter-radius-source"
+        type="geojson"
+        data={{
+          type: "FeatureCollection",
+          features: loiterCircles,
+        }}
+      >
+        <Layer
+          id="loiter-radius-layer"
+          type="line"
+          paint={{
+            "line-color": tailwindColors.yellow[400],
+            "line-width": 2,
+            "line-dasharray": [2, 2],
+          }}
+        />
+      </Source>
+
       {/* Show mission item LABELS */}
       {displayedMissionItems.map((item, index) => {
         return (
