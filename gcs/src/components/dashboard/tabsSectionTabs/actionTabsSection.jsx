@@ -29,6 +29,9 @@ import {
 import { useRebootCallback } from "../../../helpers/droneConnectionCallbacks"
 import { NoConnectionMsg } from "../tabsSection"
 
+const DEFAULT_FLIGHT_MODE_NUMBER = 3
+const NO_REMEMBERED_FLIGHT_MODES = {}
+
 export default function ActionTabsSection({
   connected,
   tabPadding,
@@ -62,7 +65,25 @@ export default function ActionTabsSection({
 
 const FlightModeAction = ({ aircraftType, currentFlightModeNumber }) => {
   const dispatch = useDispatch()
-  const [newFlightModeNumber, setNewFlightModeNumber] = useState(3) // Default to AUTO mode
+
+  // Remembered per aircraft type, because the same mode number means different
+  // things on different airframes (3 is AUTO on a copter but TRAINING on a plane).
+  const [rememberedFlightModes, setRememberedFlightModes] = useLocalStorage({
+    key: "lastSelectedFlightModes",
+    defaultValue: NO_REMEMBERED_FLIGHT_MODES,
+    getInitialValueInEffect: false,
+  })
+
+  const flightModeMap = useMemo(
+    () => getFlightModeMap(aircraftType),
+    [aircraftType],
+  )
+
+  const rememberedFlightMode = rememberedFlightModes[aircraftType]
+  const newFlightModeNumber =
+    flightModeMap[rememberedFlightMode] !== undefined
+      ? rememberedFlightMode
+      : DEFAULT_FLIGHT_MODE_NUMBER
 
   // flight mode handling
   function setNewFlightMode(modeNumber) {
@@ -73,14 +94,13 @@ const FlightModeAction = ({ aircraftType, currentFlightModeNumber }) => {
   }
 
   const flightModeSelectDataMap = useMemo(() => {
-    const flightModeMap = getFlightModeMap(aircraftType)
     return Object.keys(flightModeMap).map((key) => {
       return {
         value: key,
         label: flightModeMap[key],
       }
     })
-  }, [aircraftType])
+  }, [flightModeMap])
 
   return (
     <>
@@ -89,7 +109,10 @@ const FlightModeAction = ({ aircraftType, currentFlightModeNumber }) => {
           <Select
             value={newFlightModeNumber.toString()}
             onChange={(value) => {
-              setNewFlightModeNumber(parseInt(value))
+              setRememberedFlightModes((current) => ({
+                ...current,
+                [aircraftType]: parseInt(value),
+              }))
             }}
             data={flightModeSelectDataMap}
             className="grow"

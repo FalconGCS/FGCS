@@ -429,16 +429,19 @@ function MapSectionNonMemo({
           )
         })}
 
-        {flightModeString === "Guided" && guidedModePinData !== null && (
-          <MarkerPin
-            lat={guidedModePinData.lat}
-            lon={guidedModePinData.lon}
-            colour={tailwindColors.pink[500]}
-            tooltipText={
-              guidedModePinData.alt ? `Alt: ${guidedModePinData.alt}` : null
-            }
-          />
-        )}
+        {flightModeString === "GUIDED" &&
+          guidedModePinData !== null &&
+          guidedModePinData.lat !== 0 &&
+          guidedModePinData.lon !== 0 && (
+            <MarkerPin
+              lat={guidedModePinData.lat}
+              lon={guidedModePinData.lon}
+              colour={tailwindColors.pink[500]}
+              tooltipText={
+                guidedModePinData.alt ? `Alt: ${guidedModePinData.alt}` : null
+              }
+            />
+          )}
 
         {/* Show home position */}
         {plannedHomePosition !== null && (

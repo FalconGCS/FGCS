@@ -321,13 +321,14 @@ export function handleEmitters(socket, store, action) {
       emitter: emitControlMission,
       callback: () => {
         const controlAction = action.payload.action
-        if (!["start", "restart"].includes(controlAction))
+        if (!["start", "restart", "set_current"].includes(controlAction))
           return console.error(
             `Invalid control mission action, got ${controlAction}`,
           )
 
         socket.socket.emit("control_mission", {
           action: controlAction,
+          ...(controlAction === "set_current" && { seq: action.payload.seq }),
         })
       },
     },

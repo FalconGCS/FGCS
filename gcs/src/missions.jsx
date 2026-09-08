@@ -54,6 +54,7 @@ import {
   emitWriteCurrentMission,
   getFrameKey,
   selectActiveTab,
+  selectDefaultWaypointAltitude,
   selectDrawingFenceItems,
   selectDrawingMissionItems,
   selectDrawingRallyItems,
@@ -63,6 +64,7 @@ import {
   selectTargetInfo,
   selectUnwrittenChanges,
   setActiveTab,
+  setDefaultWaypointAltitude,
   setMissionProgressData,
   setMissionProgressModal,
   setPlannedHomePosition,
@@ -129,6 +131,11 @@ export default function Missions() {
   )
   const [plannedHomeAltInput, setPlannedHomeAltInput] = useState(
     plannedHomePosition?.alt ?? 0.1,
+  )
+
+  const defaultWaypointAltitude = useSelector(selectDefaultWaypointAltitude)
+  const [defaultAltitudeInput, setDefaultAltitudeInput] = useState(
+    defaultWaypointAltitude,
   )
 
   useEffect(() => {
@@ -444,6 +451,29 @@ export default function Missions() {
                 >
                   Save to file
                 </Button>
+              </div>
+
+              <Divider className="my-1" />
+
+              <div className="flex flex-col gap-2">
+                <NumberInput
+                  label="Default waypoint altitude"
+                  value={defaultAltitudeInput}
+                  onChange={(val) => {
+                    setDefaultAltitudeInput(val)
+                    if (isInvalidInputNumber(val)) return
+                    dispatch(setDefaultWaypointAltitude(val))
+                  }}
+                  onBlur={() => {
+                    if (isInvalidInputNumber(defaultAltitudeInput)) {
+                      setDefaultAltitudeInput(defaultWaypointAltitude)
+                    }
+                  }}
+                  min={0}
+                  allowNegative={false}
+                  suffix="m"
+                  hideControls
+                />
               </div>
 
               <Divider className="my-1" />
