@@ -32,7 +32,10 @@ import kmlSlice from "./slices/kmlSlice"
 import logAnalyserSlice, {
   setPersistentColorMap,
 } from "./slices/logAnalyserSlice"
-import missionInfoSlice, { setPlannedHomePosition } from "./slices/missionSlice"
+import missionInfoSlice, {
+  setDefaultWaypointAltitude,
+  setPlannedHomePosition,
+} from "./slices/missionSlice"
 import paramsSlice from "./slices/paramsSlice"
 import simulationParamsSlice from "./slices/simulationParamsSlice"
 import socketSlice from "./slices/socketSlice"
@@ -217,6 +220,14 @@ if (plannedHomePosition !== null) {
     }
   } catch (error) {
     store.dispatch(setPlannedHomePosition({ lat: 0, lon: 0, alt: 0 }))
+  }
+}
+
+const defaultWaypointAltitude = localStorage.getItem("defaultWaypointAltitude")
+if (defaultWaypointAltitude !== null) {
+  const parsedDefaultWaypointAltitude = Number(defaultWaypointAltitude)
+  if (Number.isFinite(parsedDefaultWaypointAltitude)) {
+    store.dispatch(setDefaultWaypointAltitude(parsedDefaultWaypointAltitude))
   }
 }
 
@@ -420,6 +431,14 @@ store.subscribe(() => {
     updateJSONLocalStorageIfChanged(
       "plannedHomePosition",
       store_mut.missionInfo.plannedHomePosition,
+    )
+  }
+
+  // Store the altitude given to newly added mission waypoints
+  if (typeof store_mut.missionInfo.defaultWaypointAltitude === "number") {
+    updateLocalStorageIfChanged(
+      "defaultWaypointAltitude",
+      store_mut.missionInfo.defaultWaypointAltitude,
     )
   }
 

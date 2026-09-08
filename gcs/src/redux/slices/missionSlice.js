@@ -8,6 +8,13 @@ import {
   showLoadingNotification,
 } from "../../helpers/notification"
 
+export const DEFAULT_WAYPOINT_ALTITUDE = 30
+
+const newItemAltitude = (state) =>
+  state.activeTab === "mission"
+    ? state.defaultWaypointAltitude
+    : DEFAULT_WAYPOINT_ALTITUDE
+
 const missionInfoSlice = createSlice({
   name: "missionInfo",
   initialState: {
@@ -56,6 +63,9 @@ const missionInfoSlice = createSlice({
       target_system: 255,
     },
     activeTab: "mission",
+    // Altitude given to new mission waypoints, persisted to localStorage by
+    // the store so it survives a restart.
+    defaultWaypointAltitude: DEFAULT_WAYPOINT_ALTITUDE,
     contextMenu: {
       isOpen: false,
       position: { x: 0, y: 0 },
@@ -205,7 +215,12 @@ const missionInfoSlice = createSlice({
 
       if (index === -1) return
 
-      const drawingItem = newMissionItem(x, y, state.targetInfo)
+      const drawingItem = newMissionItem(
+        x,
+        y,
+        state.targetInfo,
+        newItemAltitude(state),
+      )
       drawingItem.seq = index + 1
       drawingItem.command = { mission: 16, fence: 5004, rally: 5100 }[
         state.activeTab
@@ -259,7 +274,12 @@ const missionInfoSlice = createSlice({
     },
     createNewDefaultDrawingItem: (state, action) => {
       const { x, y } = action.payload
-      const drawingItem = newMissionItem(x, y, state.targetInfo)
+      const drawingItem = newMissionItem(
+        x,
+        y,
+        state.targetInfo,
+        newItemAltitude(state),
+      )
 
       const _type = `${state.activeTab}Items`
 
@@ -281,6 +301,11 @@ const missionInfoSlice = createSlice({
         ...state.unwrittenChanges,
         [state.activeTab]: true,
       }
+    },
+    setDefaultWaypointAltitude: (state, action) => {
+      const altitude = Number(action.payload)
+      if (!Number.isFinite(altitude)) return
+      state.defaultWaypointAltitude = altitude
     },
     createNewSpecificMissionItem: (state, action) => {
       const { x, y, z, command } = action.payload
@@ -566,6 +591,7 @@ const missionInfoSlice = createSlice({
     selectMissionProgressModal: (state) => state.modals.missionProgressModal,
     selectMissionProgressData: (state) => state.missionProgressData,
     selectActiveTab: (state) => state.activeTab,
+    selectDefaultWaypointAltitude: (state) => state.defaultWaypointAltitude,
     selectContextMenu: (state) => state.contextMenu,
     selectMissionDistanceMeasurements: (state) =>
       state.distanceMeasurements.items,
@@ -681,13 +707,18 @@ export const getFrameKey = (frame) =>
     Object.keys(MAV_FRAME_LIST).find((key) => MAV_FRAME_LIST[key] == frame),
   )
 
-export const newMissionItem = (x, y, targetInfo) => {
+export const newMissionItem = (
+  x,
+  y,
+  targetInfo,
+  z = DEFAULT_WAYPOINT_ALTITUDE,
+) => {
   return {
     id: uuidv4(),
     seq: null,
     x: x,
     y: y,
-    z: 30,
+    z: z,
     frame: getFrameKey("GLOBAL_RELATIVE_ALT"),
     command: null,
     param1: 0,
@@ -718,6 +749,7 @@ export const {
   selectMissionProgressModal,
   selectMissionProgressData,
   selectActiveTab,
+  selectDefaultWaypointAltitude,
   selectContextMenu,
   selectMissionDistanceMeasurements,
   selectMissionDistanceMeasurementDraftStart,
@@ -739,6 +771,7 @@ export const {
   insertDrawingItemAfter,
   reorderDrawingItem,
   createNewDefaultDrawingItem,
+  setDefaultWaypointAltitude,
   createNewSpecificMissionItem,
   clearDrawingItems,
   createFencePolygon,
