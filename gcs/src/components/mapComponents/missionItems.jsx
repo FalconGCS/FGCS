@@ -17,6 +17,12 @@ import {
 // Helper imports
 import { coordToInt, intToCoord } from "../../helpers/dataFormatters"
 import { filterMissionItems } from "../../helpers/filterMissions"
+import {
+  BRANCH_END_COMMANDS,
+  buildMissionPathSegments,
+  getReturnPathGroupsBySeq,
+  missionItemToCoord,
+} from "../../helpers/missionPathSegments"
 
 // Styling imports
 import "maplibre-gl/dist/maplibre-gl.css"
@@ -34,11 +40,88 @@ import tailwindConfig from "../../../tailwind.config"
 
 const tailwindColors = resolveConfig(tailwindConfig).theme.colors
 
+// One colour per return path, cycled if a mission has more return paths than
+// colours. Avoids the hues already spoken for elsewhere on the map: yellow for
+// ordinary mission items, red and blue for fences, purple for rally points,
+// pink for the guided mode pin and violet for the GPS track.
+const RETURN_PATH_COLOURS = [
+  tailwindColors.green[400],
+  tailwindColors.cyan[400],
+  tailwindColors.orange[400],
+  tailwindColors.fuchsia[400],
+  tailwindColors.teal[300],
+  tailwindColors.sky[400],
+]
+
 const LOITER_RADIUS_PARAMS = {
   17: "param3", // MAV_CMD_NAV_LOITER_UNLIM
   18: "param3", // MAV_CMD_NAV_LOITER_TURNS
   19: "param3", // MAV_CMD_NAV_LOITER_TIME
   31: "param2", // MAV_CMD_NAV_LOITER_TO_ALT
+}
+
+function getMidpointCoordinates(startItem, endItem) {
+  return midpoint(
+    point(missionItemToCoord(startItem)),
+    point(missionItemToCoord(endItem)),
+  ).geometry.coordinates
+}
+
+/*
+  The solid lines (mission branches and jump legs) and the dotted ones (the
+  unflown hops to and from home) for a mission, as lists of line coordinates.
+*/
+function getListOfLineCoordinates(
+  missionItems,
+  positionalItems,
+  homePosition,
+  takeoffWaypoint,
+) {
+  if (positionalItems.length === 0) return { solid: [], dotted: [] }
+
+  const homeCoord = homePosition
+    ? [intToCoord(homePosition.lon), intToCoord(homePosition.lat)]
+    : null
+
+  const { branches, jumpLegs } = buildMissionPathSegments(
+    missionItems,
+    positionalItems,
+    homeCoord,
+  )
+
+  const dottedLineSegmentsList = []
+  const firstItem = positionalItems[0]
+  const lastItem = positionalItems[positionalItems.length - 1]
+  const hasRtlMissionItem = missionItems.some((item) => item.command === 20)
+
+  // Use home as the starting point
+  if (homeCoord !== null) {
+    if (
+      takeoffWaypoint !== undefined &&
+      takeoffWaypoint.seq < firstItem.seq // If the takeoff waypoint is before the first displayed waypoint
+    ) {
+      // If there is a takeoff waypoint before the first displayed waypoint, draw a solid line from the home position (takeoff point)
+      if (branches.length > 0) {
+        branches[0] = [homeCoord, ...branches[0]]
+      } else {
+        branches.push([homeCoord, missionItemToCoord(firstItem)])
+      }
+    } else {
+      // Draw a dotted line from the home position to the first displayed waypoint
+      dottedLineSegmentsList.push([homeCoord, missionItemToCoord(firstItem)])
+    }
+  }
+
+  // If mission has no terminating land command, show return-to-home as dotted.
+  if (![21, 189].includes(lastItem.command) && !hasRtlMissionItem) {
+    const returnEndpoint = homeCoord || missionItemToCoord(firstItem)
+    dottedLineSegmentsList.push([missionItemToCoord(lastItem), returnEndpoint])
+  }
+
+  return {
+    solid: [...branches, ...jumpLegs],
+    dotted: dottedLineSegmentsList,
+  }
 }
 
 export default function MissionItems({ missionItems }) {
@@ -61,11 +144,24 @@ export default function MissionItems({ missionItems }) {
     [filteredMissionItems],
   )
 
+  const { groupBySeq: returnPathGroupBySeq, entrySeqs: returnPathEntrySeqs } =
+    useMemo(
+      () => getReturnPathGroupsBySeq(missionItems, filteredMissionItems),
+      [missionItems, filteredMissionItems],
+    )
+
+  function getMissionItemColour(item) {
+    const returnPathIndex = returnPathGroupBySeq.get(item.seq)
+    if (returnPathIndex === undefined) return tailwindColors.yellow[400]
+
+    return RETURN_PATH_COLOURS[returnPathIndex % RETURN_PATH_COLOURS.length]
+  }
+
   const missionPathItems = useMemo(() => {
     if (filteredMissionItems.length === 0) return []
 
     const stopCommandItem = [...missionItems]
-      .filter((item) => [20, 21, 189].includes(item.command))
+      .filter((item) => BRANCH_END_COMMANDS.includes(item.command))
       .sort((a, b) => a.seq - b.seq)
       .at(0)
 
@@ -78,10 +174,17 @@ export default function MissionItems({ missionItems }) {
     return missionItems.find((item) => item.command === 22)
   }, [missionItems])
 
-  const { solid: listOfLineCoords, dotted: listOfDottedLineSegments } = useMemo(
-    () => getListOfLineCoordinates(filteredMissionItems),
-    [filteredMissionItems, homePosition, takeoffWaypoint],
-  )
+  const { solid: listOfSolidLineSegments, dotted: listOfDottedLineSegments } =
+    useMemo(
+      () =>
+        getListOfLineCoordinates(
+          missionItems,
+          filteredMissionItems,
+          homePosition,
+          takeoffWaypoint,
+        ),
+      [missionItems, filteredMissionItems, homePosition, takeoffWaypoint],
+    )
 
   const loiterCircles = useMemo(() => {
     return displayedMissionItems
@@ -92,7 +195,7 @@ export default function MissionItems({ missionItems }) {
         )
         if (!Number.isFinite(radius) || radius === 0) return null
 
-        return circle([intToCoord(item.y), intToCoord(item.x)], radius, {
+        return circle(missionItemToCoord(item), radius, {
           steps: 64,
           units: "meters",
         })
@@ -134,107 +237,6 @@ export default function MissionItems({ missionItems }) {
       .filter(Boolean)
   }, [editable, missionPathItems])
 
-  function getListOfLineCoordinates(filteredMissionItems) {
-    if (filteredMissionItems.length === 0) return { solid: [], dotted: [] }
-
-    const lineCoordsList = []
-    const dottedLineSegmentsList = []
-    const stopCommandItem = [...missionItems]
-      .filter((item) => [20, 21, 189].includes(item.command))
-      .sort((a, b) => a.seq - b.seq)
-      .at(0)
-    const rtlMissionItem =
-      stopCommandItem && stopCommandItem.command === 20 ? stopCommandItem : null
-    let homeCoord = null
-
-    // Stop processing waypoints after first RTL/land command in mission sequence.
-    const itemsToProcess = stopCommandItem
-      ? filteredMissionItems.filter((item) => item.seq <= stopCommandItem.seq)
-      : filteredMissionItems
-
-    // Use home as the starting point
-    if (homePosition) {
-      homeCoord = [intToCoord(homePosition.lon), intToCoord(homePosition.lat)]
-      if (
-        takeoffWaypoint !== undefined &&
-        takeoffWaypoint.seq < itemsToProcess[0].seq // If the takeoff waypoint is before the first displayed waypoint
-      ) {
-        // If there is a takeoff waypoint before the first displayed waypoint, draw a solid line from the home position (takeoff point)
-        lineCoordsList.push(homeCoord)
-      } else {
-        // Draw a dotted line from the home position to the first displayed waypoint
-        dottedLineSegmentsList.push([
-          homeCoord,
-          [intToCoord(itemsToProcess[0].y), intToCoord(itemsToProcess[0].x)],
-        ])
-      }
-    }
-
-    const itemsForConnectedPath = rtlMissionItem
-      ? itemsToProcess.filter((item) => item.seq !== rtlMissionItem.seq)
-      : itemsToProcess
-
-    itemsForConnectedPath.forEach((item) => {
-      lineCoordsList.push([intToCoord(item.y), intToCoord(item.x)])
-    })
-
-    // If mission has no terminating land command, show return-to-home as dotted.
-    if (
-      ![21, 189].includes(itemsToProcess[itemsToProcess.length - 1].command) &&
-      !rtlMissionItem
-    ) {
-      const lastItemCoord = [
-        intToCoord(itemsToProcess[itemsToProcess.length - 1].y),
-        intToCoord(itemsToProcess[itemsToProcess.length - 1].x),
-      ]
-
-      const returnEndpoint = homeCoord || [
-        intToCoord(itemsToProcess[0].y),
-        intToCoord(itemsToProcess[0].x),
-      ]
-
-      dottedLineSegmentsList.push([lastItemCoord, returnEndpoint])
-    }
-
-    // If RTL is present, draw a solid line from the last positional waypoint back to home.
-    if (rtlMissionItem && homeCoord && itemsForConnectedPath.length > 0) {
-      lineCoordsList.push(homeCoord)
-    }
-
-    // Connect jump commands to previously displayed item and jump target item
-    const jumpCommandItems = missionItems.filter(
-      (item) =>
-        item.command === 177 &&
-        (!stopCommandItem || item.seq <= stopCommandItem.seq),
-    )
-    jumpCommandItems.forEach((jumpItem) => {
-      const nextItem = itemsToProcess.find((item) => {
-        return item.seq === jumpItem.param1
-      })
-      if (nextItem === undefined) return
-
-      const lastFilteredItem = itemsToProcess
-        .filter((item) => item.seq < jumpItem.seq)
-        .at(-1)
-      if (!lastFilteredItem) return
-
-      lineCoordsList.push([
-        intToCoord(lastFilteredItem.y),
-        intToCoord(lastFilteredItem.x),
-      ])
-      lineCoordsList.push([intToCoord(nextItem.y), intToCoord(nextItem.x)])
-    })
-
-    return { solid: lineCoordsList, dotted: dottedLineSegmentsList }
-  }
-
-  function getMidpointCoordinates(startItem, endItem) {
-    return midpoint(
-      point([intToCoord(startItem.y), intToCoord(startItem.x)]),
-      point([intToCoord(endItem.y), intToCoord(endItem.x)]),
-    ).geometry.coordinates
-  }
-
   return (
     <>
       <Source
@@ -264,7 +266,8 @@ export default function MissionItems({ missionItems }) {
             id={item.id}
             lat={intToCoord(item.x)}
             lon={intToCoord(item.y)}
-            colour={tailwindColors.yellow[400]}
+            colour={getMissionItemColour(item)}
+            ringed={returnPathEntrySeqs.has(item.seq)}
             text={`${item.seq}`}
             tooltipText={item.z ? `Alt: ${item.z}` : null}
             draggable={editable}
@@ -297,21 +300,21 @@ export default function MissionItems({ missionItems }) {
         />
       ))}
 
-      {/* Show mission item outlines */}
+      {/* Show mission item outlines. Every branch and jump leg shares one
+          source, so the map keeps a single layer however many the mission has */}
       <DrawLineCoordinates
-        coordinates={listOfLineCoords}
+        coordinates={listOfSolidLineSegments}
+        multiLine
         colour={tailwindColors.yellow[400]}
         lineProps={{ "line-width": 2 }}
       />
 
-      {listOfDottedLineSegments.map((segment, index) => (
-        <DrawLineCoordinates
-          key={index}
-          coordinates={segment}
-          colour={tailwindColors.yellow[400]}
-          lineProps={{ "line-width": 2, "line-dasharray": [4, 6] }}
-        />
-      ))}
+      <DrawLineCoordinates
+        coordinates={listOfDottedLineSegments}
+        multiLine
+        colour={tailwindColors.yellow[400]}
+        lineProps={{ "line-width": 2, "line-dasharray": [4, 6] }}
+      />
     </>
   )
 }

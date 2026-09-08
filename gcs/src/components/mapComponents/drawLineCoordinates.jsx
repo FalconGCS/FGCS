@@ -11,6 +11,9 @@ export default function DrawLineCoordinates({
   lineProps = {},
   fillLayer = false,
   fillOpacity = 0.5,
+  // Set when `coordinates` is a list of separate lines rather than one line, so
+  // several disconnected lines can share a single source and layer
+  multiLine = false,
 }) {
   return (
     <Source
@@ -19,7 +22,7 @@ export default function DrawLineCoordinates({
         type: "Feature",
         properties: {},
         geometry: {
-          type: "LineString",
+          type: multiLine ? "MultiLineString" : "LineString",
           coordinates,
         },
       }}

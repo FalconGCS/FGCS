@@ -29,6 +29,7 @@ const MarkerPin = React.memo(
     showOnTop = false,
     draggable = false,
     dragEndCallback = null,
+    ringed = false,
   }) => {
     const dispatch = useDispatch()
     const currentPage = useSelector(selectCurrentPage)
@@ -105,6 +106,16 @@ const MarkerPin = React.memo(
               strokeLinejoin="round"
               className="icon icon-tabler icons-tabler-outline icon-tabler-map-pin text-black"
             >
+              {ringed && (
+                <circle
+                  cx="12"
+                  cy="10"
+                  r="10.5"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="2"
+                />
+              )}
               <path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z" />
               {text && (
                 <text textAnchor="middle" x="12" y="14" className="text-black">
