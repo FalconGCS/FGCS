@@ -1,6 +1,6 @@
 from typing import Any
 
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 import app.droneStatus as droneStatus
 from app import logger, socketio
@@ -35,6 +35,7 @@ class ExportMissionFileType(TypedDict):
 
 class ControlMissionType(TypedDict):
     action: str
+    seq: NotRequired[int]
 
 
 def progressUpdateCallback(message: str, progress: float) -> None:
@@ -295,7 +296,7 @@ def controlMission(data: ControlMissionType) -> None:
 
     action = data.get("action", None)
 
-    if action not in ["start", "restart"]:
+    if action not in ["start", "restart", "set_current"]:
         socketio.emit(
             "params_error",
             {"message": f"Invalid action for controlling the mission, got {action}."},
@@ -307,5 +308,17 @@ def controlMission(data: ControlMissionType) -> None:
         result = droneStatus.drone.missionController.startMission()
     elif action == "restart":
         result = droneStatus.drone.missionController.restartMission()
+    elif action == "set_current":
+        seq = data.get("seq", None)
+
+        if seq is None:
+            socketio.emit(
+                "params_error",
+                {"message": "No mission item number specified to set as current."},
+            )
+            logger.debug("No seq specified for set_current mission action")
+            return
+
+        result = droneStatus.drone.missionController.setCurrentMissionItem(seq)
 
     socketio.emit("mission_control_result", result)
