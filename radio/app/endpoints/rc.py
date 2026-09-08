@@ -21,9 +21,9 @@ def getRcConfig() -> None:
         return notConnectedError(action="get the RC config")
 
     rc_params = droneStatus.drone.rcController.getConfig()
-    rc_params[
-        "flight_modes"
-    ] = droneStatus.drone.flightModesController.flight_mode_channel
+    rc_params["flight_modes"] = (
+        droneStatus.drone.flightModesController.flight_mode_channel
+    )
 
     socketio.emit(
         "rc_config",
