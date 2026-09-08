@@ -257,7 +257,7 @@ function MapSectionNonMemo({ passedRef, onDragstart, mapId = "dashboard" }) {
     <div className="w-initial h-full" id="map">
       <Map
         initialViewState={initialViewState}
-        mapStyle={`https://api.maptiler.com/maps/${getSetting("General.mapStyle") || "hybrid"}/style.json?key=${getSetting("General.maptilerAPIKey") || import.meta.env.VITE_MAPTILER_API_KEY}`}
+        mapStyle={`https://api.maptiler.com/maps/${getSetting("General.mapStyle") || "hybrid"}/style.json?key=${getSetting("General.maptilerAPIKey") || (import.meta.env.DEV ? import.meta.env.VITE_MAPTILER_API_KEY : "")}`}
         ref={passedRef}
         attributionControl={false}
         dragRotate={false}
