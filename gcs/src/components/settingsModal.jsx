@@ -24,13 +24,16 @@ import {
 } from "@tabler/icons-react"
 import { Octokit } from "octokit"
 import { memo, useEffect, useState } from "react"
+import { useDispatch } from "react-redux"
 import semverGt from "semver/functions/gt"
 import DefaultSettings from "../../data/default_settings.json"
+import { DATA_STREAM_MAP } from "../helpers/mavlinkConstants"
 import {
   closeLoadingNotification,
   redColor,
   showLoadingNotification,
 } from "../helpers/notification"
+import { emitSetStreamRates } from "../redux/slices/droneConnectionSlice"
 
 const octokit = new Octokit({})
 
@@ -192,6 +195,37 @@ function ReleaseCheckRow() {
             )}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+function SetRatesRow() {
+  const { getSetting } = useSettings()
+  const dispatch = useDispatch()
+  const developerDefaults = DefaultSettings?.Developer ?? {}
+
+  const onClick = () => {
+    for (const [name, value] of Object.entries(DATA_STREAM_MAP)) {
+      if (!Object.hasOwn(developerDefaults, name)) continue
+
+      const rateSetting = getSetting(`Developer.${name}`)
+      const rate = Number(rateSetting)
+      if (!Number.isFinite(rate)) continue
+      if (rate < 0 || rate > 15) continue
+      dispatch(emitSetStreamRates({ stream: value, rate: rate }))
+    }
+  }
+
+  return (
+    <div className="mt-0! px-10">
+      <p className="text-xs text-gray-400 mb-2">
+        Note: Data stream rates here apply to the dashboard only.
+      </p>
+      <div className="flex justify-end">
+        <Button size="compact-xs" color="blue" onClick={onClick}>
+          Set rates
+        </Button>
       </div>
     </div>
   )
@@ -741,6 +775,13 @@ function SettingsModal() {
         >
           <Tabs.List>
             {settingTabs.map((t) => {
+              // Only show developer tag when developer features are on
+              if (
+                !getSetting("General.experimentalDeveloperFeatures") &&
+                t === "Developer"
+              ) {
+                return <></>
+              }
               return (
                 <Tabs.Tab key={t} value={t}>
                   {t}
@@ -796,6 +837,11 @@ function SettingsModal() {
                     <div className="pt-4">
                       <ReleaseCheckRow />
                     </div>
+                  )}
+                  {tab === "Developer" && (
+                    <>
+                      <SetRatesRow />
+                    </>
                   )}
                 </Tabs.Panel>
               )

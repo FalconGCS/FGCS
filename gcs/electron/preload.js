@@ -35,12 +35,21 @@ const ALLOWED_INVOKE_CHANNELS = [
   "window:select-file-in-explorer",
   "app:update-ekf-status",
   "app:open-ekf-status-window",
+  "app:open-elevation-graph-window",
+  "app:close-elevation-graph-window",
+  "app:update-elevation-graph",
   "app:update-vibe-status",
   "app:open-vibe-status-window",
   "params:load-params-from-file",
   "app:open-fla-params-window",
   "app:close-fla-params-window",
+  "app:open-statustext-window",
+  "app:close-statustext-window",
+  "app:update-statustext",
   "checklist:open",
+  "kml:import",
+  "kml:list",
+  "kml:delete",
 ]
 
 const ALLOWED_SEND_CHANNELS = [
@@ -59,6 +68,8 @@ const ALLOWED_SEND_CHANNELS = [
   // drone state updates (connectedToDrone, isArmed, isFlying)
   "app:drone-state",
   "app:graph-window:ready",
+  "app:elevation-graph:ready",
+  "app:statustext-window:ready",
 ]
 
 const ALLOWED_ON_CHANNELS = [
@@ -68,6 +79,7 @@ const ALLOWED_ON_CHANNELS = [
   "app:send-link-stats",
   "fla:log-parse-progress",
   "app:send-ekf-status",
+  "app:send-elevation-graph",
   "app:send-vibe-status",
   "settings:open",
   "mavlink-forwarding:open",
@@ -75,6 +87,9 @@ const ALLOWED_ON_CHANNELS = [
   "app:graph-window:init",
   "app:send-graph-point",
   "app:graph-window:closed",
+  "app:send-statustext",
+  "app:statustext-window-opened",
+  "app:statustext-window-closed",
 ]
 
 contextBridge.exposeInMainWorld("ipcRenderer", {
@@ -221,7 +236,12 @@ const { appendLoading, removeLoading } = useLoading()
 domReady().then(appendLoading)
 
 window.onmessage = (ev) => {
-  ev.data.payload === "removeLoading" && removeLoading()
+  if (!ev || ev.data == null || typeof ev.data !== "object") {
+    return
+  }
+  if (ev.data.payload === "removeLoading") {
+    removeLoading()
+  }
 }
 
 setTimeout(removeLoading, 4999)

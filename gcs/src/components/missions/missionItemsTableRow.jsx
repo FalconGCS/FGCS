@@ -30,7 +30,34 @@ import {
 
 const coordsFractionDigits = 9
 
-export default function MissionItemsTableRow({ missionItemIndex }) {
+function formatMetric(value, suffix) {
+  if (!Number.isFinite(value)) {
+    return "-"
+  }
+
+  return `${value.toFixed(2)}${suffix}`
+}
+
+// TODO: Moved into shared helper file
+function parseNumericInput(value) {
+  if (value === null || value === undefined || value === "") {
+    return null
+  }
+
+  const numericValue = typeof value === "number" ? value : Number(value)
+  return Number.isFinite(numericValue) ? numericValue : null
+}
+
+function parseCoordinateInput(value) {
+  if (value === null || value === undefined || value === "") {
+    return 0
+  }
+
+  const numericValue = parseNumericInput(value)
+  return numericValue === null ? 0 : numericValue
+}
+
+export default function MissionItemsTableRow({ missionItemIndex, rowMetrics }) {
   const dispatch = useDispatch()
   const aircraftType = useSelector(selectAircraftType)
   const missionItem = useSelector(
@@ -120,52 +147,79 @@ export default function MissionItemsTableRow({ missionItemIndex }) {
       <TableTd>
         <NumberInput
           value={missionItem.param1}
-          onChange={(val) => updateMissionItemData("param1", val)}
+          onChange={(val) => {
+            const numericValue = parseNumericInput(val)
+            if (numericValue === null) return
+            updateMissionItemData("param1", numericValue)
+          }}
           hideControls
         />
       </TableTd>
       <TableTd>
         <NumberInput
           value={missionItem.param2}
-          onChange={(val) => updateMissionItemData("param2", val)}
+          onChange={(val) => {
+            const numericValue = parseNumericInput(val)
+            if (numericValue === null) return
+            updateMissionItemData("param2", numericValue)
+          }}
           hideControls
         />
       </TableTd>
       <TableTd>
         <NumberInput
           value={missionItem.param3}
-          onChange={(val) => updateMissionItemData("param3", val)}
+          onChange={(val) => {
+            const numericValue = parseNumericInput(val)
+            if (numericValue === null) return
+            updateMissionItemData("param3", numericValue)
+          }}
           hideControls
         />
       </TableTd>
       <TableTd>
         <NumberInput
           value={missionItem.param4}
-          onChange={(val) => updateMissionItemData("param4", val)}
+          onChange={(val) => {
+            const numericValue = parseNumericInput(val)
+            updateMissionItemData("param4", numericValue)
+          }}
           hideControls
         />
       </TableTd>
       <TableTd>
         <NumberInput
           value={intToCoord(missionItem.x).toFixed(coordsFractionDigits)}
-          onChange={(val) => updateMissionItemData("x", coordToInt(val))}
+          onChange={(val) => {
+            const numericValue = parseCoordinateInput(val)
+            updateMissionItemData("x", coordToInt(numericValue))
+          }}
           hideControls
         />
       </TableTd>
       <TableTd>
         <NumberInput
           value={intToCoord(missionItem.y).toFixed(coordsFractionDigits)}
-          onChange={(val) => updateMissionItemData("y", coordToInt(val))}
+          onChange={(val) => {
+            const numericValue = parseCoordinateInput(val)
+            updateMissionItemData("y", coordToInt(numericValue))
+          }}
           hideControls
         />
       </TableTd>
       <TableTd>
         <NumberInput
           value={missionItem.z}
-          onChange={(val) => updateMissionItemData("z", val)}
+          onChange={(val) => {
+            const numericValue = parseCoordinateInput(val)
+            if (numericValue === null) return
+            updateMissionItemData("z", numericValue)
+          }}
           hideControls
         />
       </TableTd>
+      <TableTd>{formatMetric(rowMetrics?.distanceMeters, "m")}</TableTd>
+      <TableTd>{formatMetric(rowMetrics?.gradientPercent, "%")}</TableTd>
       <TableTd>
         <Select
           data={MAV_FRAME_DROPDOWN_DATA}

@@ -79,6 +79,18 @@
       "display": "Battery Alert",
       "suffix": "%",
       "group": "Battery"
+    },
+    "heartbeatTimeoutSeconds": {
+      "description": "You'll be notified when heartbeats stop arriving from the aircraft for this long.",
+      "default": 10,
+      "type": "number",
+      "range": [
+        1,
+        3600
+      ],
+      "display": "Heartbeat Timeout",
+      "suffix": "s",
+      "group": "Connection"
     }
   },
   "Video": {
@@ -111,6 +123,96 @@
           "validation": "rtsp"
         }
       ]
+    }
+  },
+  "Developer": {
+    "MAV_DATA_STREAM_RAW_SENSORS": {
+      "default": 1,
+      "type": "number",
+      "range": [
+        0,
+        15
+      ],
+      "display": "RAW_SENSORS",
+      "suffix": "Hz",
+      "group": "Data stream rates"
+    },
+    "MAV_DATA_STREAM_EXTENDED_STATUS": {
+      "default": 1,
+      "type": "number",
+      "range": [
+        0,
+        15
+      ],
+      "display": "EXTENDED_STATUS",
+      "suffix": "Hz",
+      "group": "Data stream rates"
+    },
+    "MAV_DATA_STREAM_RC_CHANNELS": {
+      "default": 1,
+      "type": "number",
+      "range": [
+        0,
+        15
+      ],
+      "display": "RC_CHANNELS",
+      "suffix": "Hz",
+      "group": "Data stream rates"
+    },
+    "MAV_DATA_STREAM_RAW_CONTROLLER": {
+      "default": 1,
+      "type": "number",
+      "range": [
+        0,
+        15
+      ],
+      "display": "RAW_CONTROLLER",
+      "suffix": "Hz",
+      "group": "Data stream rates"
+    },
+    "MAV_DATA_STREAM_POSITION": {
+      "default": 1,
+      "type": "number",
+      "range": [
+        0,
+        15
+      ],
+      "display": "POSITION",
+      "suffix": "Hz",
+      "group": "Data stream rates"
+    },
+    "MAV_DATA_STREAM_EXTRA1": {
+      "default": 4,
+      "type": "number",
+      "range": [
+        0,
+        15
+      ],
+      "display": "EXTRA1",
+      "suffix": "Hz",
+      "group": "Data stream rates"
+    },
+    "MAV_DATA_STREAM_EXTRA2": {
+      "default": 3,
+      "type": "number",
+      "range": [
+        0,
+        15
+      ],
+      "display": "EXTRA2",
+      "suffix": "Hz",
+      "group": "Data stream rates"
+    },
+    "MAV_DATA_STREAM_EXTRA3": {
+      "default": 1,
+      "type": "number",
+      "range": [
+        0,
+        15
+      ],
+      "display": "EXTRA3",
+      "suffix": "Hz",
+      "group": "Data stream rates"
     }
   }
 }

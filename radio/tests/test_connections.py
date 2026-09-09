@@ -1,3 +1,5 @@
+from threading import Event
+
 import pytest
 from flask_socketio.test_client import SocketIOTestClient
 
@@ -49,7 +51,7 @@ def test_getTargetInfo(socketio_client: SocketIOTestClient, droneStatus):
     assert len(socketio_result) == 1
     assert socketio_result[0]["name"] == "target_info"
     assert socketio_result[0]["args"][0] == {
-        "target_component": 0,
+        "target_component": 1,
         "target_system": 1,
     }
 
@@ -169,6 +171,52 @@ def test_stopForwarding_notForwarding(socketio_client: SocketIOTestClient, drone
         "success": False,
         "message": "Not currently forwarding",
     }
+
+
+def test_connect_while_connection_in_progress_is_rejected(
+    socketio_client: SocketIOTestClient, droneStatus
+):
+    old_in_progress = droneStatus.connection_in_progress
+    old_cancel_event = droneStatus.connect_cancel_event
+
+    try:
+        droneStatus.connection_in_progress = True
+        socketio_client.emit(
+            "connect_to_drone",
+            {
+                "port": "tcp:127.0.0.1:5760",
+                "baud": 115200,
+                "connectionType": "network",
+                "forwardingAddress": None,
+            },
+        )
+
+        socketio_result = socketio_client.get_received()
+        assert socketio_result[0]["name"] == "connection_error"
+        assert socketio_result[0]["args"][0] == {
+            "message": "A drone connection is already in progress."
+        }
+    finally:
+        droneStatus.connection_in_progress = old_in_progress
+        droneStatus.connect_cancel_event = old_cancel_event
+
+
+def test_cancel_connect_to_drone_signals_cancel_event(
+    socketio_client: SocketIOTestClient, droneStatus
+):
+    old_in_progress = droneStatus.connection_in_progress
+    old_cancel_event = droneStatus.connect_cancel_event
+
+    try:
+        droneStatus.connection_in_progress = True
+        droneStatus.connect_cancel_event = Event()
+
+        socketio_client.emit("cancel_connect_to_drone")
+
+        assert droneStatus.connect_cancel_event.is_set() is True
+    finally:
+        droneStatus.connection_in_progress = old_in_progress
+        droneStatus.connect_cancel_event = old_cancel_event
 
 
 # Has to be the final test otherwise the socket disconnects

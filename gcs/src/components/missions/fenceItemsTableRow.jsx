@@ -44,6 +44,15 @@ function getAvailableCommands() {
   }))
 }
 
+function parseNumericInput(value) {
+  if (value === null || value === undefined || value === "") {
+    return null
+  }
+
+  const numericValue = typeof value === "number" ? value : Number(value)
+  return Number.isFinite(numericValue) ? numericValue : null
+}
+
 export default function FenceItemsTableRow({ fenceItemIndex }) {
   const dispatch = useDispatch()
   const fenceItem = useSelector(selectDrawingFenceItemByIdx(fenceItemIndex))
@@ -73,7 +82,11 @@ export default function FenceItemsTableRow({ fenceItemIndex }) {
       <TableTd>
         <NumberInput
           value={fenceItem.param1}
-          onChange={(val) => updateFenceItemData("param1", val)}
+          onChange={(val) => {
+            const numericValue = parseNumericInput(val)
+            if (numericValue === null) return
+            updateFenceItemData("param1", numericValue)
+          }}
           hideControls
         />
       </TableTd>
@@ -89,21 +102,33 @@ export default function FenceItemsTableRow({ fenceItemIndex }) {
       <TableTd>
         <NumberInput
           value={intToCoord(fenceItem.x).toFixed(coordsFractionDigits)}
-          onChange={(val) => updateFenceItemData("x", coordToInt(val))}
+          onChange={(val) => {
+            const numericValue = parseNumericInput(val)
+            if (numericValue === null) return
+            updateFenceItemData("x", coordToInt(numericValue))
+          }}
           hideControls
         />
       </TableTd>
       <TableTd>
         <NumberInput
           value={intToCoord(fenceItem.y).toFixed(coordsFractionDigits)}
-          onChange={(val) => updateFenceItemData("y", coordToInt(val))}
+          onChange={(val) => {
+            const numericValue = parseNumericInput(val)
+            if (numericValue === null) return
+            updateFenceItemData("y", coordToInt(numericValue))
+          }}
           hideControls
         />
       </TableTd>
       <TableTd>
         <NumberInput
           value={fenceItem.z}
-          onChange={(val) => updateFenceItemData("z", val)}
+          onChange={(val) => {
+            const numericValue = parseNumericInput(val)
+            if (numericValue === null) return
+            updateFenceItemData("z", numericValue)
+          }}
           hideControls
         />
       </TableTd>

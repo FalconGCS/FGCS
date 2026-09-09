@@ -22,6 +22,7 @@ import {
   selectBaseChartData,
   selectCustomColors,
   selectMessageFilters,
+  selectPersistentColorMap,
   // Selectors
   setAircraftType,
   setBaseChartData,
@@ -47,6 +48,7 @@ export default function FLA() {
   const dispatch = useDispatch()
   const messageFilters = useSelector(selectMessageFilters)
   const customColors = useSelector(selectCustomColors)
+  const persistentColorMap = useSelector(selectPersistentColorMap)
   const baseChartData = useSelector(selectBaseChartData)
 
   /**
@@ -159,6 +161,40 @@ export default function FLA() {
       fetchData(labelsToFetch)
     }
   }, [requestedLabels, baseChartData])
+
+  // Restore visible colors from persistent map when messageFilters change
+  useEffect(() => {
+    if (!messageFilters) return
+
+    // Build colors for active filters only.
+    // Prefer persisted colors when present, otherwise keep existing custom color.
+    const mergedVisibleColors = Object.keys(messageFilters).reduce(
+      (acc, category) => {
+        Object.keys(messageFilters[category]).forEach((field) => {
+          if (!messageFilters[category][field]) return
+
+          const key = `${category}/${field}`
+          const resolvedColor = persistentColorMap[key] ?? customColors[key]
+          if (resolvedColor) {
+            acc[key] = resolvedColor
+          }
+        })
+        return acc
+      },
+      {},
+    )
+
+    const isSameAsCurrentColors =
+      Object.keys(mergedVisibleColors).length ===
+        Object.keys(customColors).length &&
+      Object.entries(mergedVisibleColors).every(
+        ([key, value]) => customColors[key] === value,
+      )
+
+    if (Object.keys(mergedVisibleColors).length > 0 && !isSameAsCurrentColors) {
+      dispatch(setCustomColors(mergedVisibleColors))
+    }
+  }, [messageFilters, persistentColorMap, customColors, dispatch])
 
   // Step 3: Memoize the final chart data.
   // This filters the master cache. Colors are set to white by default.

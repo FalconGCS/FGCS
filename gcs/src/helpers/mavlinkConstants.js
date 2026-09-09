@@ -1,3 +1,12 @@
+import { mavlinkDef } from "./mavlinkDef"
+
+function enumToNumericLabelEntries(enumObj) {
+  return Object.entries(enumObj)
+    .filter(([key]) => !Number.isNaN(Number(key))) // keep "0","1",...
+    .map(([key, name]) => [Number(key), name])
+    .sort((a, b) => a[0] - b[0])
+}
+
 export const MAV_STATE = [
   "UNINIT",
   "BOOT",
@@ -10,71 +19,13 @@ export const MAV_STATE = [
   "FLIGHT TERMINATION",
 ]
 
-export const MAV_SEVERITY = [
-  "EMERGENCY",
-  "ALERT",
-  "CRITICAL",
-  "ERROR",
-  "WARNING",
-  "NOTICE",
-  "INFO",
-  "DEBUG",
-]
+export const PLANE_MODES_FLIGHT_MODE_MAP = Object.fromEntries(
+  enumToNumericLabelEntries(mavlinkDef.PlaneMode),
+)
 
-export const PLANE_MODES_FLIGHT_MODE_MAP = {
-  0: "Manual",
-  1: "CIRCLE",
-  2: "STABILIZE",
-  3: "TRAINING",
-  4: "ACRO",
-  5: "FBWA",
-  6: "FBWB",
-  7: "CRUISE",
-  8: "AUTOTUNE",
-  10: "Auto",
-  11: "RTL",
-  12: "Loiter",
-  13: "TAKEOFF",
-  14: "AVOID_ADSB",
-  15: "Guided",
-  17: "QSTABILIZE",
-  18: "QHOVER",
-  19: "QLOITER",
-  20: "QLAND",
-  21: "QRTL",
-  22: "QAUTOTUNE",
-  23: "QACRO",
-  24: "THERMAL",
-  25: "Loiter to QLand",
-}
-
-export const COPTER_MODES_FLIGHT_MODE_MAP = {
-  0: "Stabilize",
-  1: "Acro",
-  2: "AltHold",
-  3: "Auto",
-  4: "Guided",
-  5: "Loiter",
-  6: "RTL",
-  7: "Circle",
-  9: "Land",
-  11: "Drift",
-  13: "Sport",
-  14: "Flip",
-  15: "AutoTune",
-  16: "PosHold",
-  17: "Brake",
-  18: "Throw",
-  19: "Avoid_ADSB",
-  20: "Guided_NoGPS",
-  21: "Smart_RTL",
-  22: "FlowHold",
-  23: "Follow",
-  24: "ZigZag",
-  25: "SystemID",
-  26: "Heli_Autorotate",
-  27: "UNKNOWN",
-}
+export const COPTER_MODES_FLIGHT_MODE_MAP = Object.fromEntries(
+  enumToNumericLabelEntries(mavlinkDef.CopterMode),
+)
 
 export function getFlightModeMap(aircraftType) {
   if (aircraftType === "Plane") {
@@ -85,19 +36,15 @@ export function getFlightModeMap(aircraftType) {
   return {}
 }
 
-export const GPS_FIX_TYPES = [
-  "NO GPS",
-  "NO FIX",
-  "2D FIX",
-  "3D FIX",
-  "DGPS",
-  "RTK FLOAT",
-  "RTK FIXED",
-  "STATIC",
-  "PPP",
-]
+function formatGpsFixLabel(name) {
+  return name
+    .replace(/^GPS_FIX_TYPE_/, "") // remove prefix
+    .replace(/_/g, " ") // underscores -> spaces
+}
 
-export const MAV_AUTOPILOT_INVALID = 8
+export const GPS_FIX_TYPES = enumToNumericLabelEntries(
+  mavlinkDef.GpsFixType,
+).map(([, name]) => formatGpsFixLabel(name))
 
 export const FRAME_TYPE_MAP_QUAD = {
   0: {
@@ -314,15 +261,6 @@ export const MOTOR_LETTER_LABELS = [
   "L",
 ]
 
-export const MISSION_STATES = {
-  0: "UNKNOWN",
-  1: "NO MISSION",
-  2: "NOT STARTED",
-  3: "ACTIVE",
-  4: "PAUSED",
-  5: "COMPLETED",
-}
-
 // List of mission item commands to not display on the map
 // due to lack of GPS coordinates
 export const FILTER_MISSION_ITEM_COMMANDS_LIST = {
@@ -404,6 +342,7 @@ export const PLANE_MISSION_ITEM_COMMANDS_LIST = {
   601: "MAV_CMD_DO_JUMP_TAG",
   205: "MAV_CMD_DO_MOUNT_CONTROL",
   210: "MAV_CMD_DO_INVERTED_FLIGHT",
+  188: "MAV_CMD_DO_RETURN_PATH_START",
   189: "MAV_CMD_DO_LAND_START",
   207: "MAV_CMD_DO_FENCE_ENABLE",
   212: "MAV_CMD_DO_AUTOTUNE_ENABLE",
@@ -460,24 +399,7 @@ export const FENCE_ITEM_COMMANDS_LIST = {
   5004: "MAV_CMD_NAV_FENCE_CIRCLE_EXCLUSION",
 }
 
-export const MAV_FRAME_LIST = {
-  0: "MAV_FRAME_GLOBAL",
-  1: "MAV_FRAME_LOCAL_NED",
-  2: "MAV_FRAME_MISSION",
-  3: "MAV_FRAME_GLOBAL_RELATIVE_ALT",
-  4: "MAV_FRAME_LOCAL_ENU",
-  5: "MAV_FRAME_GLOBAL_INT",
-  6: "MAV_FRAME_GLOBAL_RELATIVE_ALT_INT",
-  7: "MAV_FRAME_LOCAL_OFFSET_NED",
-  8: "MAV_FRAME_BODY_NED",
-  9: "MAV_FRAME_BODY_OFFSET_NED",
-  10: "MAV_FRAME_GLOBAL_TERRAIN_ALT",
-  11: "MAV_FRAME_GLOBAL_TERRAIN_ALT_INT",
-  12: "MAV_FRAME_BODY_FRD",
-  21: "MAV_FRAME_LOCAL_FRD",
-  22: "MAV_FRAME_LOCAL_FLU",
-  23: "MAV_FRAME_ENUM_END",
-}
+export const MAV_FRAME_LIST = mavlinkDef.MavFrame
 
 function getPositionFrameValue(frameName) {
   return Object.keys(MAV_FRAME_LIST).find(
@@ -487,9 +409,9 @@ function getPositionFrameValue(frameName) {
 
 function getFrameDropdownData() {
   const frameMap = {
-    [getPositionFrameValue("MAV_FRAME_GLOBAL")]: "Absolute",
-    [getPositionFrameValue("MAV_FRAME_GLOBAL_RELATIVE_ALT")]: "Relative",
-    [getPositionFrameValue("MAV_FRAME_GLOBAL_TERRAIN_ALT")]: "Terrain",
+    [getPositionFrameValue("GLOBAL")]: "Absolute",
+    [getPositionFrameValue("GLOBAL_RELATIVE_ALT")]: "Relative",
+    [getPositionFrameValue("GLOBAL_TERRAIN_ALT")]: "Terrain",
   }
 
   return Object.entries(frameMap).map(([frameValue, label]) => ({
@@ -500,20 +422,9 @@ function getFrameDropdownData() {
 
 export const MAV_FRAME_DROPDOWN_DATA = getFrameDropdownData()
 
-export const EKF_STATUS_FLAGS = {
-  1: "EKF_ATTITUDE",
-  2: "EKF_VELOCITY_HORIZ",
-  4: "EKF_VELOCITY_VERT",
-  8: "EKF_POS_HORIZ_REL",
-  16: "EKF_POS_HORIZ_ABS",
-  32: "EKF_POS_VERT_ABS",
-  64: "EKF_POS_VERT_AGL",
-  128: "EKF_CONST_POS_MODE",
-  256: "EKF_PRED_POS_HORIZ_REL",
-  512: "EKF_PRED_POS_HORIZ_ABS",
-  1024: "EKF_UNINITIALIZED",
-  32768: "EKF_GPS_GLITCHING",
-}
+export const EKF_STATUS_FLAGS = Object.fromEntries(
+  enumToNumericLabelEntries(mavlinkDef.EkfStatusFlags),
+)
 
 export function getActiveEKFFlags(statusValue) {
   const activeFlags = []
@@ -557,3 +468,15 @@ export const EXCLUDE_PARAMS_LOAD = [
   "STAT_RESET",
   "STAT_RUNTIME",
 ]
+
+export const DATA_STREAM_MAP = {
+  MAV_DATA_STREAM_ALL: 0,
+  MAV_DATA_STREAM_RAW_SENSORS: 1,
+  MAV_DATA_STREAM_EXTENDED_STATUS: 2,
+  MAV_DATA_STREAM_RC_CHANNELS: 3,
+  MAV_DATA_STREAM_RAW_CONTROLLER: 4,
+  MAV_DATA_STREAM_POSITION: 6,
+  MAV_DATA_STREAM_EXTRA1: 10,
+  MAV_DATA_STREAM_EXTRA2: 11,
+  MAV_DATA_STREAM_EXTRA3: 12,
+}

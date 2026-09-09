@@ -27,10 +27,7 @@ import { useSettings } from "../../helpers/settings"
 // Other dashboard imports
 import ContextMenuItem from "../mapComponents/contextMenuItem"
 import ContextMenuSubMenuItem from "../mapComponents/contextMenuSubMenuItem"
-import {
-  DistanceMeasurementMarkers,
-  DistanceMeasurementModal,
-} from "../mapComponents/distanceMeasurement"
+import { DistanceMeasurementMarkers } from "../mapComponents/distanceMeasurement"
 import DroneMarker from "../mapComponents/droneMarker"
 import FenceItems from "../mapComponents/fenceItems"
 import HomeMarker from "../mapComponents/homeMarker"
@@ -57,20 +54,28 @@ import {
   selectGuidedModePinData,
 } from "../../redux/slices/droneInfoSlice"
 import {
+  addMissionDistanceMeasurement,
   clearDrawingItems,
+  clearMissionDistanceMeasurementDraftStart,
   createFencePolygon,
   createNewDefaultDrawingItem,
   getFrameKey,
   removeDrawingItem,
+  removeMissionDistanceMeasurement,
   selectActiveTab,
   selectContextMenu,
+  selectMissionDistanceMeasurementDraftStart,
+  selectMissionDistanceMeasurements,
   selectPlannedHomePosition,
+  setMissionDistanceMeasurementDraftStart,
   setPlannedHomePosition,
   setPlannedHomePositionToDronesHomePositionThunk,
   updateContextMenuState,
 } from "../../redux/slices/missionSlice"
 import AddPoiMarkerModal from "../mapComponents/addPoiMarkerModal"
 import ContextMenuSpecificCommandItems from "../mapComponents/contextMenuSpecificCommandItems"
+import KmlLayers from "../mapComponents/kmlLayers"
+import KmlLayersControl from "../mapComponents/kmlLayersControl"
 import POIMarkersContainer from "../mapComponents/poiMarkersContainer"
 
 const tailwindColors = resolveConfig(tailwindConfig).theme.colors
@@ -83,6 +88,7 @@ function MapSectionNonMemo({
   fenceItems,
   rallyItems,
   onDragstart,
+  onOpenElevationGraph,
 }) {
   // Redux
   const dispatch = useDispatch()
@@ -91,6 +97,10 @@ function MapSectionNonMemo({
   const flightModeString = useSelector(selectFlightModeString)
   const currentTab = useSelector(selectActiveTab)
   const contextMenuState = useSelector(selectContextMenu)
+  const measureDistanceStart = useSelector(
+    selectMissionDistanceMeasurementDraftStart,
+  )
+  const distanceMeasurements = useSelector(selectMissionDistanceMeasurements)
   const guidedModePinData = useSelector(selectGuidedModePinData)
   const poiMarkers = useSelector(selectPoiMarkers)
 
@@ -121,10 +131,11 @@ function MapSectionNonMemo({
   const [polygonDrawMode, setPolygonDrawMode] = useState(false)
   const [polygonPoints, setPolygonPoints] = useState([])
 
-  // Distance measurement state
-  const [measureDistanceStart, setMeasureDistanceStart] = useState(null)
-  const [measureDistanceEnd, setMeasureDistanceEnd] = useState(null)
-  const [measureDistanceResult, setMeasureDistanceResult] = useState(null)
+  const selectedDistanceMeasurementId =
+    typeof contextMenuState?.markerId === "string" &&
+    contextMenuState.markerId.startsWith("distance:")
+      ? contextMenuState.markerId.split(":")[1]
+      : null
 
   const [addPoiMarkerModalOpened, setAddPoiMarkerModalOpened] = useState(false)
 
@@ -287,24 +298,32 @@ function MapSectionNonMemo({
 
   function measureDistance() {
     if (measureDistanceStart === null) {
-      setMeasureDistanceStart(contextMenuState.gpsCoords)
+      dispatch(
+        setMissionDistanceMeasurementDraftStart(contextMenuState.gpsCoords),
+      )
       showInfoNotification('Click "Measure distance" again to finish measuring')
     } else {
-      setMeasureDistanceEnd(contextMenuState.gpsCoords)
-      setMeasureDistanceResult(
-        distance(
-          [measureDistanceStart.lng, measureDistanceStart.lat],
-          [contextMenuState.gpsCoords.lng, contextMenuState.gpsCoords.lat],
-          { units: "meters" },
-        ),
+      dispatch(
+        addMissionDistanceMeasurement({
+          id: uuidv4(),
+          start: measureDistanceStart,
+          end: contextMenuState.gpsCoords,
+          distanceMeters: distance(
+            [measureDistanceStart.lng, measureDistanceStart.lat],
+            [contextMenuState.gpsCoords.lng, contextMenuState.gpsCoords.lat],
+            { units: "meters" },
+          ),
+        }),
       )
     }
   }
 
   function stopMeasureDistance() {
-    setMeasureDistanceStart(null)
-    setMeasureDistanceEnd(null)
-    setMeasureDistanceResult(null)
+    dispatch(clearMissionDistanceMeasurementDraftStart())
+  }
+
+  function openElevationGraph() {
+    onOpenElevationGraph?.()
   }
 
   return (
@@ -371,6 +390,8 @@ function MapSectionNonMemo({
         }}
         cursor="default"
       >
+        <KmlLayers />
+
         {/* Show marker on map if the position is set */}
         {position !== null &&
           !isNaN(position?.latitude) &&
@@ -408,16 +429,19 @@ function MapSectionNonMemo({
           )
         })}
 
-        {flightModeString === "Guided" && guidedModePinData !== null && (
-          <MarkerPin
-            lat={guidedModePinData.lat}
-            lon={guidedModePinData.lon}
-            colour={tailwindColors.pink[500]}
-            tooltipText={
-              guidedModePinData.alt ? `Alt: ${guidedModePinData.alt}` : null
-            }
-          />
-        )}
+        {flightModeString === "GUIDED" &&
+          guidedModePinData !== null &&
+          guidedModePinData.lat !== 0 &&
+          guidedModePinData.lon !== 0 && (
+            <MarkerPin
+              lat={guidedModePinData.lat}
+              lon={guidedModePinData.lon}
+              colour={tailwindColors.pink[500]}
+              tooltipText={
+                guidedModePinData.alt ? `Alt: ${guidedModePinData.alt}` : null
+              }
+            />
+          )}
 
         {/* Show home position */}
         {plannedHomePosition !== null && (
@@ -437,15 +461,14 @@ function MapSectionNonMemo({
 
         <DistanceMeasurementMarkers
           measureDistanceStart={measureDistanceStart}
-          measureDistanceEnd={measureDistanceEnd}
+          distanceMeasurements={distanceMeasurements}
         />
 
         <POIMarkersContainer />
 
-        <DistanceMeasurementModal
-          measureDistanceResult={measureDistanceResult}
-          onClose={stopMeasureDistance}
-        />
+        <div className="absolute z-30 top-2 left-2">
+          <KmlLayersControl mapRef={passedRef} position="right-start" />
+        </div>
 
         <AddPoiMarkerModal
           modalOpened={addPoiMarkerModalOpened}
@@ -490,7 +513,8 @@ function MapSectionNonMemo({
             </ContextMenuItem>
             {contextMenuState.markerId !== null &&
               contextMenuState.markerId !== undefined &&
-              contextMenuState.markerId !== "home" && (
+              contextMenuState.markerId !== "home" &&
+              !String(contextMenuState.markerId).startsWith("distance:") && (
                 <>
                   <Divider />
                   <ContextMenuItem
@@ -542,6 +566,23 @@ function MapSectionNonMemo({
             <Divider />
             <ContextMenuItem onClick={measureDistance}>
               <p>Measure distance</p>
+            </ContextMenuItem>
+            {selectedDistanceMeasurementId && (
+              <ContextMenuItem
+                onClick={() => {
+                  dispatch(
+                    removeMissionDistanceMeasurement(
+                      selectedDistanceMeasurementId,
+                    ),
+                  )
+                  stopMeasureDistance()
+                }}
+              >
+                <p>Delete distance measurement</p>
+              </ContextMenuItem>
+            )}
+            <ContextMenuItem onClick={openElevationGraph}>
+              <p>Elevation graph</p>
             </ContextMenuItem>
             <ContextMenuSubMenuItem title={"POI marker"}>
               <ContextMenuItem

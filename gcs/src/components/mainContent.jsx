@@ -5,12 +5,13 @@
 import { useEffect, useMemo } from "react"
 import { Route, Routes } from "react-router-dom"
 
+import AutopilotRebootModal from "./params/autopilotRebootModal.jsx"
 import SettingsModal from "./settingsModal"
 import { Commands } from "./spotlight/commandHandler"
 import Toolbar from "./toolbar/toolbar"
-import AutopilotRebootModal from "./params/autopilotRebootModal.jsx"
 
 // Wrappers
+import { useLoadStoredKmlLayers } from "../helpers/kmlLayers"
 import { SettingsProvider } from "../helpers/settingsProvider"
 import SingleRunWrapper from "./SingleRunWrapper"
 
@@ -25,9 +26,9 @@ import Navbar from "./navbar"
 // Redux
 import { ErrorBoundary } from "react-error-boundary"
 import { useDispatch, useSelector } from "react-redux"
-import { initSocket } from "../redux/slices/socketSlice"
 import { selectConnectedToDrone } from "../redux/slices/droneConnectionSlice"
 import { selectIsArmed, selectIsFlying } from "../redux/slices/droneInfoSlice"
+import { initSocket } from "../redux/slices/socketSlice"
 import AlertProvider from "./dashboard/alerts/alertProvider"
 import ErrorBoundaryFallback from "./error/errorBoundary"
 
@@ -42,6 +43,9 @@ export default function AppContent() {
   useEffect(() => {
     dispatch(initSocket())
   }, [])
+
+  // Load previously imported KML overlays for both maps
+  useLoadStoredKmlLayers()
 
   // Send drone state to main for appropriate quit messages
   useEffect(() => {
@@ -70,7 +74,7 @@ export default function AppContent() {
     <SettingsProvider>
       <SingleRunWrapper>
         <Toolbar />
-        <ErrorBoundary fallbackRender={ErrorBoundaryFallback}>
+        <ErrorBoundary FallbackComponent={ErrorBoundaryFallback}>
           <SettingsModal />
           <Navbar className="no-drag" />
           <Routes>

@@ -84,6 +84,7 @@ import {
   setBatteryData,
   setDroneAircraftType,
   setEkfStatusReportData,
+  setEscTelemetryData,
   setFlightSwVersion,
   setGps2RawIntData,
   setGpsData,
@@ -304,6 +305,7 @@ const socketMiddleware = (store) => {
         break
       case "STATUSTEXT":
         store.dispatch(pushMessage(msg))
+        window.ipcRenderer.invoke("app:update-statustext", msg)
         break
       case "SYS_STATUS":
         store.dispatch(
@@ -384,6 +386,10 @@ const socketMiddleware = (store) => {
         window.ipcRenderer.invoke("app:update-vibe-status", data)
         break
       }
+      case "ESC_TELEMETRY_1_TO_4":
+      case "ESC_TELEMETRY_5_TO_8":
+        store.dispatch(setEscTelemetryData(msg))
+        break
       case "SERVO_OUTPUT_RAW":
         handleServoOutputRaw(msg)
         break
@@ -472,6 +478,29 @@ const socketMiddleware = (store) => {
         socket.socket.on("disconnected_from_drone", () => {
           store.dispatch(setConnected(false))
           store.dispatch(setConnectedToSimulator(false))
+          store.dispatch(
+            setGpsData({
+              mavpackettype: "GLOBAL_POSITION_INT",
+              time_boot_ms: 0,
+              lat: 0,
+              lon: 0,
+              alt: 0,
+              relative_alt: 0,
+              vx: 0,
+              vy: 0,
+              vz: 0,
+              hdg: 0,
+              timestamp: 0,
+            }),
+          )
+          store.dispatch(
+            setHomePosition({
+              lat: 0,
+              lon: 0,
+              alt: 0,
+            }),
+          )
+          store.dispatch(resetGpsTrack())
           store.dispatch(setIsFetchingDashboardMission(false))
           store.dispatch(
             closeDashboardMissionFetchingNotificationNoSuccessThunk(),
@@ -501,6 +530,13 @@ const socketMiddleware = (store) => {
 
         // Flags that the drone is connected
         socket.socket.on("connected_to_drone", (msg) => {
+          store.dispatch(
+            setHomePosition({
+              lat: 0,
+              lon: 0,
+              alt: 0,
+            }),
+          )
           store.dispatch(setDroneAircraftType(msg.aircraft_type)) // There are two aircraftTypes, make sure to not use FLA one haha :D
           if (msg.aircraft_type !== 1 && msg.aircraft_type !== 2) {
             showErrorNotification("Aircraft not of type quadcopter or plane")

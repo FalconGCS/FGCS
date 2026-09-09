@@ -20,6 +20,15 @@ import {
 } from "../../redux/slices/missionSlice"
 const coordsFractionDigits = 9
 
+function parseNumericInput(value) {
+  if (value === null || value === undefined || value === "") {
+    return null
+  }
+
+  const numericValue = typeof value === "number" ? value : Number(value)
+  return Number.isFinite(numericValue) ? numericValue : null
+}
+
 export default function RallyItemsTableRow({ rallyItemIndex }) {
   const dispatch = useDispatch()
   const rallyItem = useSelector(selectDrawingRallyItemByIdx(rallyItemIndex))
@@ -59,21 +68,33 @@ export default function RallyItemsTableRow({ rallyItemIndex }) {
       <TableTd>
         <NumberInput
           value={intToCoord(rallyItem.x).toFixed(coordsFractionDigits)}
-          onChange={(val) => updateRallyItemData("x", coordToInt(val))}
+          onChange={(val) => {
+            const numericValue = parseNumericInput(val)
+            if (numericValue === null) return
+            updateRallyItemData("x", coordToInt(numericValue))
+          }}
           hideControls
         />
       </TableTd>
       <TableTd>
         <NumberInput
           value={intToCoord(rallyItem.y).toFixed(coordsFractionDigits)}
-          onChange={(val) => updateRallyItemData("y", coordToInt(val))}
+          onChange={(val) => {
+            const numericValue = parseNumericInput(val)
+            if (numericValue === null) return
+            updateRallyItemData("y", coordToInt(numericValue))
+          }}
           hideControls
         />
       </TableTd>
       <TableTd>
         <NumberInput
           value={rallyItem.z}
-          onChange={(val) => updateRallyItemData("z", val)}
+          onChange={(val) => {
+            const numericValue = parseNumericInput(val)
+            if (numericValue === null) return
+            updateRallyItemData("z", numericValue)
+          }}
           hideControls
         />
       </TableTd>

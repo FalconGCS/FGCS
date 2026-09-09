@@ -20,10 +20,12 @@ import {
   selectCustomColors,
   selectLogType,
   selectMessageFilters,
+  selectPersistentColorMap,
   setCanSavePreset,
   setColorIndex,
   setCustomColors,
   setMessageFilters,
+  setPersistentColorMapEntry,
 } from "../../redux/slices/logAnalyserSlice.js"
 import { colorPalette } from "./constants.js"
 
@@ -64,6 +66,7 @@ export default function MessagesFiltersAccordion() {
 
   const messageFilters = useSelector(selectMessageFilters)
   const customColors = useSelector(selectCustomColors)
+  const persistentColorMap = useSelector(selectPersistentColorMap)
   const colorIndex = useSelector(selectColorIndex)
   const logType = useSelector(selectLogType)
   const aircraftType = useSelector(selectAircraftType)
@@ -113,14 +116,26 @@ export default function MessagesFiltersAccordion() {
 
       const checked = event.currentTarget.checked
       let newColors = { ...customColors }
+      const fieldKey = `${messageName}/${fieldName}`
 
       if (!checked) {
-        delete newColors[`${messageName}/${fieldName}`]
+        delete newColors[fieldKey]
       } else {
-        if (!newColors[`${messageName}/${fieldName}`]) {
-          newColors[`${messageName}/${fieldName}`] =
-            colorPalette[colorIndex % colorPalette.length]
-          dispatch(setColorIndex((colorIndex + 1) % colorPalette.length))
+        if (!newColors[fieldKey]) {
+          // Check persistent map first, then fall back to palette
+          if (persistentColorMap[fieldKey]) {
+            newColors[fieldKey] = persistentColorMap[fieldKey]
+          } else {
+            const assignedColor = colorPalette[colorIndex % colorPalette.length]
+            newColors[fieldKey] = assignedColor
+            dispatch(
+              setPersistentColorMapEntry({
+                key: fieldKey,
+                color: assignedColor,
+              }),
+            )
+            dispatch(setColorIndex((colorIndex + 1) % colorPalette.length))
+          }
         }
       }
 
@@ -134,7 +149,7 @@ export default function MessagesFiltersAccordion() {
       )
       dispatch(setCanSavePreset(hasSelectedFilters))
     },
-    [messageFilters, customColors, colorIndex, dispatch],
+    [messageFilters, customColors, persistentColorMap, colorIndex, dispatch],
   )
 
   // Memoize description getters

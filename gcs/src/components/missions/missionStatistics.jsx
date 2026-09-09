@@ -11,6 +11,7 @@ import {
   filterMissionItems,
   isGlobalFrameHomeCommand,
 } from "../../helpers/filterMissions"
+import { buildMissionWaypointLegMetrics } from "../../helpers/missionWaypointMetrics"
 
 // Redux
 import { useSelector } from "react-redux"
@@ -28,96 +29,48 @@ function calculateMaxAltitude(missionItems) {
 }
 
 function calculateMaxDistanceBetweenWaypoints(missionItems, homePosition) {
-  if (missionItems.length < 2) return 0
-  let maxDistance = 0
-  let maxDistancePoints = []
+  const legMetrics = buildMissionWaypointLegMetrics(missionItems, homePosition)
+  let maxLeg = null
 
-  // Swap the coords of the first position with the home position if it exists
-  if (
-    isGlobalFrameHomeCommand(missionItems[0]) &&
-    homePosition &&
-    missionItems[1].command === 22
-  ) {
-    const newFirstPoint = {
-      ...missionItems[1],
-      x: homePosition.lat,
-      y: homePosition.lon,
-      z: homePosition.alt,
+  for (const leg of legMetrics) {
+    if (!leg || leg.distanceMeters === null) {
+      continue
     }
-    missionItems = [newFirstPoint, ...missionItems.slice(1)]
-  }
 
-  // Remove any waypoints without coordinates
-  missionItems = missionItems.filter((item) => item.x !== 0 && item.y !== 0)
-
-  for (let i = 0; i < missionItems.length - 1; i++) {
-    const item1 = missionItems[i]
-    const item2 = missionItems[i + 1]
-    const distanceBetweenPoints = distance(
-      [intToCoord(item1.y), intToCoord(item1.x)],
-      [intToCoord(item2.y), intToCoord(item2.x)],
-      {
-        units: "meters",
-      },
-    )
-    if (distanceBetweenPoints > maxDistance) {
-      maxDistance = distanceBetweenPoints
-      maxDistancePoints = [item1, item2]
+    if (maxLeg === null || leg.distanceMeters > maxLeg.distanceMeters) {
+      maxLeg = leg
     }
   }
 
-  // distance to 2dp
-  maxDistance = Math.round(maxDistance * 100) / 100
-
-  return { maxDistance: maxDistance, points: maxDistancePoints }
+  return {
+    maxDistance: maxLeg ? Math.round(maxLeg.distanceMeters * 100) / 100 : 0,
+    points: maxLeg ? [maxLeg.previousWaypoint, maxLeg.currentWaypoint] : [],
+  }
 }
 
 function calculateMaxSlopeGradient(missionItems, homePosition) {
-  if (missionItems.length < 2) return 0
-  let maxGradient = 0
-  let maxDistancePoints = []
+  const legMetrics = buildMissionWaypointLegMetrics(missionItems, homePosition)
+  let maxLeg = null
 
-  // Swap the coords of the first position with the home position if it exists
-  if (
-    isGlobalFrameHomeCommand(missionItems[0]) &&
-    homePosition &&
-    missionItems[1].command === 22
-  ) {
-    const newFirstPoint = {
-      ...missionItems[1],
-      x: homePosition.lat,
-      y: homePosition.lon,
-      z: homePosition.alt,
+  for (const leg of legMetrics) {
+    if (!leg || leg.gradientPercent === null) {
+      continue
     }
-    missionItems = [newFirstPoint, ...missionItems.slice(1)]
-  }
 
-  for (let i = 0; i < missionItems.length - 1; i++) {
-    const item1 = missionItems[i]
-    const item2 = missionItems[i + 1]
-
-    if (item1.z === undefined || item2.z === undefined) continue
-
-    const verticalDistance = Math.abs(item2.z - item1.z)
-    const horizontalDistance = distance(
-      [intToCoord(item1.y), intToCoord(item1.x)],
-      [intToCoord(item2.y), intToCoord(item2.x)],
-      { units: "meters" },
-    )
-
-    if (horizontalDistance === 0) continue // Avoid division by zero
-
-    const gradient = (verticalDistance / horizontalDistance) * 100 // Convert to percentage
-
-    if (gradient > maxGradient) {
-      maxGradient = gradient
-      maxDistancePoints = [item1, item2]
+    if (
+      maxLeg === null ||
+      Math.abs(leg.gradientPercent) > Math.abs(maxLeg.gradientPercent)
+    ) {
+      maxLeg = leg
     }
   }
 
-  maxGradient = Math.round(maxGradient * 100) / 100 // Round to two decimal places
-
-  return { maxGradient: maxGradient, points: maxDistancePoints }
+  return {
+    maxGradient: maxLeg
+      ? Math.round(Math.abs(maxLeg.gradientPercent) * 100) / 100
+      : 0,
+    points: maxLeg ? [maxLeg.previousWaypoint, maxLeg.currentWaypoint] : [],
+  }
 }
 
 function calculateTotalDistance(missionItems, homePosition) {

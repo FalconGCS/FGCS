@@ -92,3 +92,15 @@ def test_fetchAllParamsBlocking_success_sorts_and_updates_progress(droneStatus) 
         assert controller.total_number_of_params == 0
     finally:
         controller.params = old_params
+
+
+def test_fetchAllParamsBlocking_cancelled_before_start(droneStatus) -> None:
+    controller = droneStatus.drone.paramsController
+
+    result = controller.fetchAllParamsBlocking(
+        timeout_secs=120,
+        should_cancel_callback=lambda: True,
+    )
+
+    assert result["success"] is False
+    assert result["message"] == "Connection cancelled by user."

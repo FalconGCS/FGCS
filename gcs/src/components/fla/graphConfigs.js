@@ -12,13 +12,34 @@ import tailwindConfig from "../../../tailwind.config.js"
 
 const tailwindColors = resolveConfig(tailwindConfig).theme.colors
 
+// Converts microseconds to a display time in the format mm:ss or mm:ss.SSS
+// depending on the roundTo parameter
 function microsecondsToDisplayTime(microseconds, roundTo) {
-  var seconds = microseconds / 1_000_000
-  var mins = Math.floor(seconds / 60)
+  const safeMicroseconds = Number.isFinite(microseconds) ? microseconds : 0
+  const precision = Number.isInteger(roundTo)
+    ? Math.max(0, Math.min(6, roundTo))
+    : 0
 
-  return `${String(mins).padStart(2, "0")}:${String(
-    (seconds % 60).toFixed(roundTo),
-  ).padStart(2, "0")}`
+  const wholeSeconds = Math.floor(safeMicroseconds / 1_000_000)
+  const remainingMicros = safeMicroseconds - wholeSeconds * 1_000_000
+
+  const fractionScale = 10 ** precision
+  let roundedFraction = Math.round(
+    (remainingMicros / 1_000_000) * fractionScale,
+  )
+
+  const secondCarry = Math.floor(roundedFraction / fractionScale)
+  roundedFraction %= fractionScale
+
+  const totalSeconds = wholeSeconds + secondCarry
+  const mins = Math.floor(totalSeconds / 60)
+  const secs = totalSeconds % 60
+
+  if (precision === 0) {
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
+  }
+
+  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${String(roundedFraction).padStart(precision, "0")}`
 }
 
 function getChartLabel(context) {
@@ -82,7 +103,7 @@ export const dataflashOptions = {
     tooltip: {
       callbacks: {
         title: function (context) {
-          return microsecondsToDisplayTime(context[0].parsed.x, 5)
+          return microsecondsToDisplayTime(context[0].parsed.x, 3)
         },
         label: getChartLabel,
       },
@@ -111,7 +132,9 @@ export const fgcsOptions = {
     tooltip: {
       callbacks: {
         title: function (context) {
-          return moment(context[0].parsed.x).format("MMMM Do YYYY, h:mm:ss a")
+          return moment(context[0].parsed.x).format(
+            "MMMM Do YYYY, HH:mm:ss.SSS",
+          )
         },
         label: getChartLabel,
       },

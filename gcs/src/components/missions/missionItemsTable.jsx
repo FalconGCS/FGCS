@@ -3,16 +3,26 @@
 */
 
 import { Table } from "@mantine/core"
-import React from "react"
+import React, { useMemo } from "react"
 import { isGlobalFrameHomeCommand } from "../../helpers/filterMissions"
+import { buildMissionWaypointLegMetrics } from "../../helpers/missionWaypointMetrics"
 import MissionItemsTableRow from "./missionItemsTableRow"
 
 // Redux
 import { useSelector } from "react-redux"
-import { selectDrawingMissionItems } from "../../redux/slices/missionSlice"
+import {
+  selectDrawingMissionItems,
+  selectPlannedHomePosition,
+} from "../../redux/slices/missionSlice"
 
 function MissionItemsTableNonMemo({ tableSectionHeight }) {
   const missionItems = useSelector(selectDrawingMissionItems)
+  const plannedHomePosition = useSelector(selectPlannedHomePosition)
+
+  const rowMetricsByIdx = useMemo(
+    () => buildMissionWaypointLegMetrics(missionItems, plannedHomePosition),
+    [missionItems, plannedHomePosition],
+  )
 
   return (
     <Table.ScrollContainer maxHeight={tableSectionHeight}>
@@ -28,20 +38,23 @@ function MissionItemsTableNonMemo({ tableSectionHeight }) {
             <Table.Th>Lat</Table.Th>
             <Table.Th>Lng</Table.Th>
             <Table.Th>Alt</Table.Th>
+            <Table.Th>Distance</Table.Th>
+            <Table.Th>Gradient</Table.Th>
             <Table.Th>Frame</Table.Th>
             <Table.Th></Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
           {missionItems.map((missionItem, idx) => {
-            // Skip home location
             if (idx === 0 && isGlobalFrameHomeCommand(missionItem)) {
               return null
             }
+
             return (
               <MissionItemsTableRow
                 key={missionItem.id}
                 missionItemIndex={idx}
+                rowMetrics={rowMetricsByIdx[idx]}
               />
             )
           })}
@@ -54,6 +67,7 @@ function MissionItemsTableNonMemo({ tableSectionHeight }) {
 function propsAreEqual(prev, next) {
   return JSON.stringify(prev) === JSON.stringify(next)
 }
+
 const MissionItemsTable = React.memo(MissionItemsTableNonMemo, propsAreEqual)
 
 export default MissionItemsTable

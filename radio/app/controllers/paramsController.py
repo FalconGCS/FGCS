@@ -77,10 +77,17 @@ class ParamsController:
         self,
         timeout_secs: int = 120,
         progress_update_callback: Optional[Callable[[dict], None]] = None,
+        should_cancel_callback: Optional[Callable[[], bool]] = None,
     ) -> Response:
         """
         Fetches all parameters from the drone in a blocking manner.
         """
+        if should_cancel_callback and should_cancel_callback():
+            return {
+                "success": False,
+                "message": "Connection cancelled by user.",
+            }
+
         start_response = self._startFetchAll()
         if not start_response.get("success"):
             return start_response
@@ -89,6 +96,13 @@ class ParamsController:
 
         try:
             while self.is_requesting_params:
+                if should_cancel_callback and should_cancel_callback():
+                    self.drone.logger.info("Parameter fetch cancelled by user")
+                    return {
+                        "success": False,
+                        "message": "Connection cancelled by user.",
+                    }
+
                 if time.time() > timeout:
                     self.drone.logger.error(
                         f"Fetching all parameters timed out after {timeout_secs} seconds"

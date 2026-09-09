@@ -1,6 +1,7 @@
 export const AlertCategory = {
   Altitude: "Altitude",
   Battery: "Battery",
+  Heartbeat: "Heartbeat",
   Speed: "Speed",
 }
 

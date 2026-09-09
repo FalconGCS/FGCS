@@ -43,8 +43,23 @@ const initialState = {
   outsideVisibility: false, // local
 
   videoSource: null,
-  videoMaximized: false,
+  videoMaximised: false,
   videoScale: 1,
+
+  escTelemetryMaximised: false,
+
+  statusTextSize: {
+    width: 600,
+    height: 150,
+  },
+
+  escTelemetryThresholds: {
+    temperature: {
+      warning: 90,
+      danger: 120,
+      higherIsBetter: false,
+    },
+  },
 
   forceDisarmModalOpened: false,
   forceArmModalOpened: false,
@@ -144,11 +159,27 @@ const droneConnectionSlice = createSlice({
     setVideoSource: (state, action) => {
       state.videoSource = action.payload
     },
-    setVideoMaximized: (state, action) => {
-      state.videoMaximized = action.payload
+    setVideoMaximised: (state, action) => {
+      state.videoMaximised = action.payload
     },
     setVideoScale: (state, action) => {
       state.videoScale = action.payload
+    },
+    setEscTelemetryMaximised: (state, action) => {
+      state.escTelemetryMaximised = action.payload
+    },
+    setEscTelemetryThresholds: (state, action) => {
+      state.escTelemetryThresholds = action.payload
+    },
+    setStatusTextSize: (state, action) => {
+      const next = action.payload
+      if (!next || typeof next !== "object") return
+
+      const width = Number(next.width)
+      const height = Number(next.height)
+      if (Number.isNaN(width) || Number.isNaN(height)) return
+
+      state.statusTextSize = { width, height }
     },
     setForceDisarmModalOpened: (state, action) => {
       state.forceDisarmModalOpened = action.payload
@@ -189,6 +220,7 @@ const droneConnectionSlice = createSlice({
     emitTakeoff: () => {},
     emitLand: () => {},
     emitSetCurrentFlightMode: () => {},
+    emitSetStreamRates: () => {},
   },
   selectors: {
     selectConnecting: (state) => state.connecting,
@@ -211,8 +243,11 @@ const droneConnectionSlice = createSlice({
     selectCurrentPage: (state) => state.currentPage,
     selectOutsideVisibility: (state) => state.outsideVisibility,
     selectVideoSource: (state) => state.videoSource,
-    selectVideoMaximized: (state) => state.videoMaximized,
+    selectVideoMaximised: (state) => state.videoMaximised,
     selectVideoScale: (state) => state.videoScale,
+    selectEscTelemetryMaximised: (state) => state.escTelemetryMaximised,
+    selectEscTelemetryThresholds: (state) => state.escTelemetryThresholds,
+    selectStatusTextSize: (state) => state.statusTextSize,
     selectForceDisarmModalOpened: (state) => state.forceDisarmModalOpened,
     selectForceArmModalOpened: (state) => state.forceArmModalOpened,
     selectPoiMarkers: (state) => state.poiMarkers,
@@ -240,8 +275,12 @@ export const {
   setCurrentPage,
   setOutsideVisibility,
   setVideoSource,
-  setVideoMaximized,
+  setVideoMaximised,
   setVideoScale,
+  setEscTelemetryMaximised,
+  setEscTelemetryScale,
+  setEscTelemetryThresholds,
+  setStatusTextSize,
   setForceDisarmModalOpened,
   setForceArmModalOpened,
   addPoiMarker,
@@ -264,7 +303,9 @@ export const {
   emitTakeoff,
   emitLand,
   emitSetCurrentFlightMode,
+  emitSetStreamRates,
 } = droneConnectionSlice.actions
+
 export const {
   selectConnecting,
   selectConnectedToDrone,
@@ -285,8 +326,12 @@ export const {
   selectCurrentPage,
   selectOutsideVisibility,
   selectVideoSource,
-  selectVideoMaximized,
+  selectVideoMaximised,
   selectVideoScale,
+  selectEscTelemetryMaximised,
+  selectEscTelemetryScale,
+  selectEscTelemetryThresholds,
+  selectStatusTextSize,
   selectForceDisarmModalOpened,
   selectForceArmModalOpened,
   selectPoiMarkers,

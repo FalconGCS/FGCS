@@ -7,8 +7,7 @@ import {
   getFlightModeMap,
   MAV_STATE,
 } from "../../helpers/mavlinkConstants"
-
-const MAV_SYS_STATUS_PREARM_CHECK = 268435456
+import { mavlinkDef } from "../../helpers/mavlinkDef"
 
 // TODO: Make this configurable in the future?
 const GPS_TRACK_MAX_LENGTH = 300
@@ -32,6 +31,10 @@ const droneInfoSlice = createSlice({
       climb: 0.0,
       heading: 0.0,
       throttle: 0.0,
+    },
+    escData: {
+      ESC_TELEMETRY_1_TO_4: null,
+      ESC_TELEMETRY_5_TO_8: null,
     },
     gpsData: {
       mavpackettype: "GLOBAL_POSITION_INT",
@@ -62,6 +65,9 @@ const droneInfoSlice = createSlice({
       baseMode: 0,
       customMode: 0,
       systemStatus: 0,
+    },
+    heartbeatMonitor: {
+      lastReceivedAt: 0,
     },
     onboardControlSensorsEnabled: 0,
     onboardControlSensorsHealth: 0,
@@ -132,14 +138,14 @@ const droneInfoSlice = createSlice({
     },
     setHeartbeatData: (state, action) => {
       if (
-        action.payload.base_mode & 128 &&
-        !(state.heartbeatData.baseMode & 128)
+        action.payload.base_mode & mavlinkDef.MavModeFlag["SAFETY_ARMED"] &&
+        !(state.heartbeatData.baseMode & mavlinkDef.MavModeFlag["SAFETY_ARMED"])
       ) {
         state.isArmed = true
         state.notificationSound = "armed"
       } else if (
-        !(action.payload.base_mode & 128) &&
-        state.heartbeatData.baseMode & 128
+        !(action.payload.base_mode & mavlinkDef.MavModeFlag["SAFETY_ARMED"]) &&
+        state.heartbeatData.baseMode & mavlinkDef.MavModeFlag["SAFETY_ARMED"]
       ) {
         state.isArmed = false
         state.isFlying = false
@@ -152,6 +158,14 @@ const droneInfoSlice = createSlice({
       }
       state.heartbeatData.customMode = action.payload.custom_mode
       state.heartbeatData.systemStatus = action.payload.system_status
+    },
+    setHeartbeatMonitorLastReceivedAt: (state, action) => {
+      if (action.payload !== state.heartbeatMonitor.lastReceivedAt) {
+        state.heartbeatMonitor.lastReceivedAt = action.payload
+      }
+    },
+    resetHeartbeatMonitor: (state) => {
+      state.heartbeatMonitor.lastReceivedAt = 0
     },
     setBatteryData: (state, action) => {
       const battery = state.batteryData.filter(
@@ -184,6 +198,30 @@ const droneInfoSlice = createSlice({
     setDroneAircraftType: (state, action) => {
       if (action.payload !== state.aircraftType) {
         state.aircraftType = action.payload
+      }
+    },
+    setEscTelemetryData: (state, action) => {
+      const packetType = action.payload?.mavpackettype
+      if (!packetType) return
+
+      state.escData = {
+        ...state.escData,
+        [packetType]: {
+          ...action.payload,
+          rpm: Array.isArray(action.payload.rpm) ? [...action.payload.rpm] : [],
+          current: Array.isArray(action.payload.current)
+            ? [...action.payload.current]
+            : [],
+          voltage: Array.isArray(action.payload.voltage)
+            ? [...action.payload.voltage]
+            : [],
+          temperature: Array.isArray(action.payload.temperature)
+            ? [...action.payload.temperature]
+            : [],
+          totalcurrent: Array.isArray(action.payload.totalcurrent)
+            ? [...action.payload.totalcurrent]
+            : [],
+        },
       }
     },
     setTelemetryData: (state, action) => {
@@ -309,16 +347,16 @@ const droneInfoSlice = createSlice({
       // Check EKF flags to handle critical errors
       // https://github.com/ArduPilot/MissionPlanner/blob/4d441bd4b1dbc08adce4d8b26e078e93760da3a7/ExtLibs/ArduPilot/CurrentState.cs#L2674-L2736
       const activeFlags = getActiveEKFFlags(state.ekfStatusReportData.flags)
-      if (!activeFlags.includes("EKF_ATTITUDE")) {
+      if (!activeFlags.includes("ATTITUDE")) {
         // If we have no attitude solution
         state.ekfCalculatedStatus = 1
-      } else if (!activeFlags.includes("EKF_VELOCITY_HORIZ")) {
+      } else if (!activeFlags.includes("VELOCITY_HORIZ")) {
         // If we have GPS but no horizontal velocity solution
         const gpsStatus = state.gpsRawIntData.fixType
         if (gpsStatus > 0) {
           state.ekfCalculatedStatus = 1
         }
-      } else if (activeFlags.includes("EKF_UNINITIALIZED")) {
+      } else if (activeFlags.includes("UNINITIALIZED")) {
         // EKF not initialized at all
         state.ekfCalculatedStatus = 1
       }
@@ -346,12 +384,16 @@ const droneInfoSlice = createSlice({
     selectFlightSwVersion: (state) => state.flightSwVersion,
     selectAttitude: (state) => state.attitudeData,
     selectTelemetry: (state) => state.telemetryData,
+    selectEscTelemetry1To4: (state) => state.escData.ESC_TELEMETRY_1_TO_4,
+    selectEscTelemetry5To8: (state) => state.escData.ESC_TELEMETRY_5_TO_8,
     selectGPS: (state) => state.gpsData,
     selectHeading: (state) => centiDegToDeg(state.gpsData.hdg),
     selectHomePosition: (state) => state.homePosition,
     selectNavController: (state) => state.navControllerData,
     selectDesiredBearing: (state) => state.navControllerData.navBearing,
     selectHeartbeat: (state) => state.heartbeatData,
+    selectHeartbeatLastReceivedAt: (state) =>
+      state.heartbeatMonitor.lastReceivedAt,
     selectIsArmed: (state) => state.isArmed,
     selectIsFlying: (state) => state.isFlying,
     selectNotificationSound: (state) => state.notificationSound,
@@ -359,10 +401,12 @@ const droneInfoSlice = createSlice({
     selectSystemStatus: (state) => MAV_STATE[state.heartbeatData.systemStatus],
     selectReadyToArm: (state) => {
       const isEnabled = !!(
-        state.onboardControlSensorsEnabled & MAV_SYS_STATUS_PREARM_CHECK
+        state.onboardControlSensorsEnabled &
+        mavlinkDef.MavSysStatusSensor.PREARM_CHECK
       )
       const isHealthy = !!(
-        state.onboardControlSensorsHealth & MAV_SYS_STATUS_PREARM_CHECK
+        state.onboardControlSensorsHealth &
+        mavlinkDef.MavSysStatusSensor.PREARM_CHECK
       )
 
       // If pre-arm check is enabled, it must also be healthy
@@ -375,8 +419,8 @@ const droneInfoSlice = createSlice({
     selectHasEverHadGpsFix: (state) => state.hasEverHadGpsFix,
     selectRSSI: (state) => state.rssi,
     selectAircraftType: (state) => state.aircraftType,
-    selectBatteryData: (state) =>
-      state.batteryData.sort((b1, b2) => b1.id - b2.id),
+
+    selectRawBatteryData: (state) => state.batteryData,
     selectGuidedModePinData: (state) => state.guidedModePinData,
     selectSelectedDisplayTelemetry: (state) => state.selectedDisplayTelemetry,
     selectStatusText: (state) => state.statusText,
@@ -394,10 +438,13 @@ const droneInfoSlice = createSlice({
 export const {
   setFlightSwVersion,
   setHeartbeatData,
+  setHeartbeatMonitorLastReceivedAt,
+  resetHeartbeatMonitor,
   soundPlayed,
   changeSelectedDisplayTelemetry,
   setSelectedDisplayTelemetry,
   setDroneAircraftType,
+  setEscTelemetryData,
   setTelemetryData,
   setGpsData,
   setHomePosition,
@@ -423,6 +470,11 @@ export const {
 } = droneInfoSlice.actions
 
 // Memoized selectors because redux is a bitch
+export const selectBatteryData = createSelector(
+  [droneInfoSlice.selectors.selectRawBatteryData],
+  (batteryData) => [...batteryData].sort((b1, b2) => b1.id - b2.id),
+)
+
 export const selectDroneCoords = createSelector(
   [droneInfoSlice.selectors.selectGPS],
   ({ lat, lon }) => {
@@ -438,6 +490,44 @@ export const selectAttitudeDeg = createSelector(
       pitch: pitch * (180 / Math.PI),
       yaw: yaw * (180 / Math.PI),
     }
+  },
+)
+
+export const selectEscTelemetry = createSelector(
+  [
+    droneInfoSlice.selectors.selectEscTelemetry1To4,
+    droneInfoSlice.selectors.selectEscTelemetry5To8,
+  ],
+  (esc1To4, esc5To8) => {
+    const escs = []
+
+    function pushEscPacket(packet, baseIndex) {
+      if (!packet) return
+
+      // Most fields are arrays of length 4, but guard anyway
+      const rpm = packet.rpm ?? []
+      const count = Math.min(4, rpm.length)
+
+      for (let i = 0; i < count; i++) {
+        escs.push({
+          escId: baseIndex + i + 1,
+          rpm: packet.rpm?.[i] ?? null,
+          current: packet.current?.[i] ?? null,
+          voltage: packet.voltage?.[i] ?? null,
+          temperature: packet.temperature?.[i] ?? null,
+          totalcurrent: packet.totalcurrent?.[i] ?? null,
+          timestamp: packet.timestamp ?? null,
+        })
+      }
+    }
+
+    // ESC 1-4
+    pushEscPacket(esc1To4, 0)
+
+    // ESC 5-8
+    pushEscPacket(esc5To8, 4)
+
+    return escs
   },
 )
 
@@ -465,7 +555,6 @@ export const selectAircraftTypeString = createSelector(
 export const selectFlightModeString = createSelector(
   [droneInfoSlice.selectors.selectFlightMode, selectAircraftTypeString],
   (flightMode, aircraftType) => {
-    //TODO: aircraftType should be in local storage apparently (for some reason?)
     const flightModeMap = getFlightModeMap(aircraftType)
     return flightModeMap[flightMode] || "UNKNOWN"
   },
@@ -519,6 +608,7 @@ export const {
   selectNavController,
   selectDesiredBearing,
   selectHeartbeat,
+  selectHeartbeatLastReceivedAt,
   selectIsArmed,
   selectIsFlying,
   selectReadyToArm,
@@ -530,9 +620,10 @@ export const {
   selectHeading,
   selectSystemStatus,
   selectNotificationSound,
+  selectEscTelemetry1To4,
+  selectEscTelemetry5To8,
   selectFlightMode,
   selectAircraftType,
-  selectBatteryData,
   selectGuidedModePinData,
   selectSelectedDisplayTelemetry,
   selectGraphValues,

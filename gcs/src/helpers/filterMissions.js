@@ -31,9 +31,7 @@ export function filterMissionItems(missionItems) {
 
 export function isGlobalFrameHomeCommand(waypoint) {
   const globalFrameValue = parseInt(
-    Object.keys(MAV_FRAME_LIST).find(
-      (key) => MAV_FRAME_LIST[key] === "MAV_FRAME_GLOBAL",
-    ),
+    Object.keys(MAV_FRAME_LIST).find((key) => MAV_FRAME_LIST[key] === "GLOBAL"),
   )
   return (
     waypoint.frame === globalFrameValue &&

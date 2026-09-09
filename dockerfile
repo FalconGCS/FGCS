@@ -27,6 +27,9 @@ EXPOSE 5760/tcp
 EXPOSE 5762/tcp
 EXPOSE 5763/tcp
 
+RUN mkdir -p /ardupilot_cache
+VOLUME ["/ardupilot_cache"]
+
 WORKDIR /
 
 ADD sitl_setup sitl_setup
@@ -34,6 +37,8 @@ ADD sitl_setup sitl_setup
 WORKDIR /sitl_setup
 
 RUN chmod +x run.sh
+
+HEALTHCHECK --interval=5s --timeout=3s --start-period=15s --retries=240 CMD test -f /tmp/fgcs_done || exit 1
 
 # ENTRYPOINT python ./Tools/autotest/sim_vehicle.py -v ArduCopter --custom-location=${LAT},${LON},${ALT},${DIR} --no-mavproxy
 ENTRYPOINT [ "./run.sh" ]

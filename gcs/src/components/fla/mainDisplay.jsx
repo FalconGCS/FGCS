@@ -67,9 +67,9 @@ export default function MainDisplay({ closeLogFile, chartData, customColors }) {
         <Panel defaultSize={panelLayout.leftSidebar} minSize={10}>
           <div className="pb-6 flex flex-col min-h-0 h-full pr-2">
             <div className="flex flex-col mb-2 text-sm gap-y-2 flex-shrink-0">
-              <div className="flex flex-row justify-between">
+              <div className="flex">
                 <Tooltip label={file.path}>
-                  <div className="px-4 py-2 text-gray-200 bg-falcongrey-700 rounded truncate max-w-[400px] inline-block">
+                  <div className="flex-1 min-w-0 px-4 py-2 text-gray-200 bg-falcongrey-700 rounded truncate">
                     File Name:
                     <span
                       className="ml-2 text-white underline cursor-pointer"
@@ -85,7 +85,7 @@ export default function MainDisplay({ closeLogFile, chartData, customColors }) {
                   </div>
                 </Tooltip>
                 <Button
-                  className="ml-2"
+                  className="ml-2 flex-shrink-0"
                   size="sm"
                   color="red"
                   onClick={closeLogFile}
@@ -95,14 +95,14 @@ export default function MainDisplay({ closeLogFile, chartData, customColors }) {
               </div>
               <div className="flex justify-between px-4 py-2 text-gray-200 rounded bg-falcongrey-700">
                 <div className="whitespace-nowrap">Aircraft Type:</div>
-                <div className="text-white ml-auto capitalize">
+                <div className="text-white text-right capitalize">
                   {aircraftType ?? "No Aircraft Type"}
                 </div>
               </div>
               {firmwareVersion !== null && (
                 <div className="flex justify-between px-4 py-2 text-gray-200 rounded bg-falcongrey-700">
                   <div className="whitespace-nowrap">Firmware Version:</div>
-                  <div className="text-white ml-auto">{firmwareVersion}</div>
+                  <div className="text-white text-right">{firmwareVersion}</div>
                 </div>
               )}
             </div>

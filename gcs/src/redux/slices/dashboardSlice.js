@@ -9,6 +9,10 @@ const initialState = {
     gpsCoords: { lat: 0, lng: 0 },
     markerId: null,
   },
+  distanceMeasurements: {
+    draftStart: null,
+    items: [],
+  },
 }
 
 const dashboardSlice = createSlice({
@@ -48,14 +52,49 @@ const dashboardSlice = createSlice({
         position: { x: x, y: y },
       }
     },
+    setDashboardDistanceMeasurementDraftStart: (state, action) => {
+      state.distanceMeasurements.draftStart = action.payload
+    },
+    addDashboardDistanceMeasurement: (state, action) => {
+      state.distanceMeasurements.items.push(action.payload)
+      state.distanceMeasurements.draftStart = null
+    },
+    clearDashboardDistanceMeasurementDraftStart: (state) => {
+      state.distanceMeasurements.draftStart = null
+    },
+    removeDashboardDistanceMeasurement: (state, action) => {
+      state.distanceMeasurements.items =
+        state.distanceMeasurements.items.filter(
+          (measurement) => measurement.id !== action.payload,
+        )
+    },
+    clearDashboardDistanceMeasurements: (state) => {
+      state.distanceMeasurements.items = []
+      state.distanceMeasurements.draftStart = null
+    },
   },
   selectors: {
     selectDashboardContextMenu: (state) => state.contextMenu,
+    selectDashboardDistanceMeasurements: (state) =>
+      state.distanceMeasurements.items,
+    selectDashboardDistanceMeasurementDraftStart: (state) =>
+      state.distanceMeasurements.draftStart,
   },
 })
 
-export const { updateDashboardContextMenuState } = dashboardSlice.actions
+export const {
+  updateDashboardContextMenuState,
+  setDashboardDistanceMeasurementDraftStart,
+  addDashboardDistanceMeasurement,
+  clearDashboardDistanceMeasurementDraftStart,
+  removeDashboardDistanceMeasurement,
+  clearDashboardDistanceMeasurements,
+} = dashboardSlice.actions
 
-export const { selectDashboardContextMenu } = dashboardSlice.selectors
+export const {
+  selectDashboardContextMenu,
+  selectDashboardDistanceMeasurements,
+  selectDashboardDistanceMeasurementDraftStart,
+} = dashboardSlice.selectors
 
 export default dashboardSlice

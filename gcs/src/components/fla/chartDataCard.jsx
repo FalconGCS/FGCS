@@ -18,6 +18,7 @@ import {
   setCanSavePreset,
   setCustomColors,
   setMessageFilters,
+  setPersistentColorMapEntry,
 } from "../../redux/slices/logAnalyserSlice.js"
 
 function ChartDataCard({ item, unit, messageMeans }) {
@@ -35,6 +36,7 @@ function ChartDataCard({ item, unit, messageMeans }) {
 
       const newColors = { ...customColors, [label]: color }
       dispatch(setCustomColors(newColors))
+      dispatch(setPersistentColorMapEntry({ key: label, color }))
     },
     [customColors, dispatch],
   )

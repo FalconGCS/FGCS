@@ -37,6 +37,7 @@ import { useDispatch, useSelector } from "react-redux"
 import {
   ConnectionType,
   emitConnectToDrone,
+  emitDisconnectFromDrone,
   emitGetComPorts,
   emitStartForwarding,
   emitStopForwarding,
@@ -108,6 +109,15 @@ export default function Navbar() {
   const connectToDroneFromButtonCallback = useConnectToDroneFromButtonCallback()
   const disconnectFromDroneCallback = useDisconnectFromDroneCallback()
 
+  function handleConnectionModalCloseOrCancel() {
+    if (connecting) {
+      dispatch(emitDisconnectFromDrone())
+      return
+    }
+
+    dispatch(setConnectionModal(false))
+  }
+
   function connectToDrone(type) {
     if (type === ConnectionType.Serial) {
       dispatch(
@@ -168,10 +178,7 @@ export default function Navbar() {
       {/* Connect to drone modal - should probably be moved into its own component? */}
       <Modal
         opened={openedModal}
-        onClose={() => {
-          dispatch(setConnectionModal(false))
-          dispatch(setConnecting(false))
-        }}
+        onClose={handleConnectionModalCloseOrCancel}
         title="Connect to aircraft"
         centered
         overlayProps={{
@@ -296,13 +303,9 @@ export default function Navbar() {
             <Button
               variant="filled"
               color={"red"}
-              onClick={() => {
-                dispatch(setConnectionModal(false))
-                dispatch(setConnecting(false))
-              }}
-              disabled={connecting}
+              onClick={handleConnectionModalCloseOrCancel}
             >
-              Close
+              {connecting ? "Cancel" : "Close"}
             </Button>
             <Button
               variant="filled"

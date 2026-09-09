@@ -14,6 +14,7 @@ const logAnalyserSlice = createSlice({
     messageMeans: {},
     baseChartData: [],
     customColors: {},
+    persistentColorMap: {},
     colorIndex: 0,
     aircraftType: null,
     canSavePreset: false,
@@ -64,6 +65,15 @@ const logAnalyserSlice = createSlice({
     setCustomColors: (state, action) => {
       state.customColors = action.payload
     },
+    setPersistentColorMap: (state, action) => {
+      state.persistentColorMap = action.payload
+    },
+    setPersistentColorMapEntry: (state, action) => {
+      const { key, color } = action.payload || {}
+      if (!key || !color) return
+      if (state.persistentColorMap[key] === color) return
+      state.persistentColorMap[key] = color
+    },
     setColorIndex: (state, action) => {
       state.colorIndex = action.payload
     },
@@ -109,6 +119,7 @@ const logAnalyserSlice = createSlice({
     selectMessageMeans: (state) => state.messageMeans,
     selectBaseChartData: (state) => state.baseChartData,
     selectCustomColors: (state) => state.customColors,
+    selectPersistentColorMap: (state) => state.persistentColorMap,
     selectColorIndex: (state) => state.colorIndex,
     selectAircraftType: (state) => state.aircraftType,
     selectCanSavePreset: (state) => state.canSavePreset,
@@ -133,6 +144,8 @@ export const {
   setMessageMeans,
   setBaseChartData,
   setCustomColors,
+  setPersistentColorMap,
+  setPersistentColorMapEntry,
   setColorIndex,
   setAircraftType,
   setCanSavePreset,
@@ -157,6 +170,7 @@ export const {
   selectMessageMeans,
   selectBaseChartData,
   selectCustomColors,
+  selectPersistentColorMap,
   selectColorIndex,
   selectAircraftType,
   selectCanSavePreset,

@@ -6,17 +6,17 @@
     "name": "Avis-Drone-Labs"
   },
   "private": true,
-  "version": "0.2.3-alpha-dev.1",
+  "version": "0.2.9-alpha",
   "license": "GPL-3.0-only",
   "homepage": "https://fgcs.projectfalcon.uk",
-  "githubLink": "https://github.com/Avis-Drone-Labs/FGCS",
+  "githubLink": "https://github.com/1Blademaster/FGCS",
   "bugs": {
-    "url": "https://github.com/Avis-Drone-Labs/FGCS/issues/new/choose"
+    "url": "https://github.com/1Blademaster/FGCS/issues/new/choose"
   },
   "scripts": {
     "test": "tsc && vite build && xvfb-maybe yarn playwright test",
     "test:nobuild": "xvfb-maybe yarn playwright test",
-    "dev": "vite --port 5173",
+    "dev": "vite",
     "build": "tsc && vite build && electron-builder",
     "lint": "eslint src electron tests --ext js,jsx,ts,tsx",
     "lint:fix": "eslint src electron tests --ext js,jsx,ts,tsx --fix",
@@ -43,6 +43,7 @@
     "@tiptap/pm": "^2.11.6",
     "@tiptap/react": "^2.11.6",
     "@tiptap/starter-kit": "^2.11.6",
+    "@tmcw/togeojson": "^7.1.2",
     "@tremor/react": "^3.12.1",
     "@turf/turf": "^7.2.0",
     "bufferutil": "^4.0.9",
@@ -57,6 +58,7 @@
     "mapbox-gl": "^3.0.1",
     "maplibre-gl": "^3.6.2",
     "moment": "^2.29.4",
+    "node-mavlink": "^2.3.0",
     "octokit": "^4.0.2",
     "playwright": "^1.56.0",
     "prettier": "3.2.5",

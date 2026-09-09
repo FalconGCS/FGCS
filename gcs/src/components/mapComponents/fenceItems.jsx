@@ -5,10 +5,10 @@
   connecting them. It properly parses the type of fence marker.
 */
 
-import { useEffect, useState } from "react"
+import { useMemo } from "react"
 
 // Helper imports
-import { intToCoord } from "../../helpers/dataFormatters"
+import { coordToInt, intToCoord } from "../../helpers/dataFormatters"
 
 // Styling imports
 import "maplibre-gl/dist/maplibre-gl.css"
@@ -16,16 +16,20 @@ import "maplibre-gl/dist/maplibre-gl.css"
 // Component imports
 
 // Tailwind styling
-import { circle } from "@turf/turf"
+import { circle, midpoint, point } from "@turf/turf"
 import { Layer, Source } from "react-map-gl"
-import { useSelector } from "react-redux"
+import { useDispatch, useSelector } from "react-redux"
 import resolveConfig from "tailwindcss/resolveConfig"
 import tailwindConfig from "../../../tailwind.config"
 import { FENCE_ITEM_COMMANDS_LIST } from "../../helpers/mavlinkConstants"
 import { selectCurrentPage } from "../../redux/slices/droneConnectionSlice"
-import { selectActiveTab } from "../../redux/slices/missionSlice"
+import {
+  insertFencePolygonVertex,
+  selectActiveTab,
+} from "../../redux/slices/missionSlice"
 import DrawLineCoordinates from "./drawLineCoordinates"
 import MarkerPin from "./markerPin"
+import MidpointInsertButton from "./midpointInsertButton"
 const tailwindColors = resolveConfig(tailwindConfig).theme.colors
 
 function getFenceCommandNumber(value) {
@@ -46,25 +50,79 @@ const circleCommands = [
 ]
 
 export default function FenceItems({ fenceItems }) {
+  const dispatch = useDispatch()
   const currentPage = useSelector(selectCurrentPage)
   const editable =
     useSelector(selectActiveTab) === "fence" && currentPage === "missions"
 
-  const [fencePolygonItems, setFencePolygonItems] = useState([])
-  const [fenceCircleItems, setFenceCircleItems] = useState([])
+  const { fencePolygonGroups, fencePolygonItems, fenceCircleItems } =
+    useMemo(() => {
+      const polygonItems = []
+      const circleItems = []
+      const polygonGroups = []
 
-  useEffect(() => {
-    // Filter out fence items based on their type
-    const polygonItems = fenceItems.filter((item) =>
-      polygonCommands.includes(item.command),
-    )
-    const circleItems = fenceItems.filter((item) =>
-      circleCommands.includes(item.command),
-    )
+      let currentGroup = []
+      let currentGroupStartIndex = null
 
-    setFencePolygonItems(polygonItems)
-    setFenceCircleItems(circleItems)
-  }, [fenceItems])
+      fenceItems.forEach((item, index) => {
+        if (polygonCommands.includes(item.command)) {
+          const polygonItem = { ...item, fenceIndex: index }
+          polygonItems.push(polygonItem)
+
+          if (currentGroup.length === 0) {
+            currentGroupStartIndex = index
+          }
+
+          currentGroup.push(polygonItem)
+
+          if (currentGroup.length === item.param1) {
+            polygonGroups.push({
+              items: currentGroup,
+              startIndex: currentGroupStartIndex,
+            })
+            currentGroup = []
+            currentGroupStartIndex = null
+          }
+
+          return
+        }
+
+        if (circleCommands.includes(item.command)) {
+          circleItems.push({ ...item, fenceIndex: index })
+        }
+      })
+
+      return {
+        fencePolygonGroups: polygonGroups,
+        fencePolygonItems: polygonItems,
+        fenceCircleItems: circleItems,
+      }
+    }, [fenceItems])
+
+  const polygonEdgeInsertButtons = useMemo(() => {
+    if (!editable) return []
+
+    return fencePolygonGroups.flatMap((polygon) => {
+      if (polygon.items.length < 2) return []
+
+      return polygon.items.map((item, index) => {
+        const nextItem = polygon.items[(index + 1) % polygon.items.length]
+        const midpointCoords = midpoint(
+          point([intToCoord(item.y), intToCoord(item.x)]),
+          point([intToCoord(nextItem.y), intToCoord(nextItem.x)]),
+        ).geometry.coordinates
+
+        return {
+          afterId: item.id,
+          polygonStartIndex: polygon.startIndex,
+          polygonLength: polygon.items.length,
+          lat: midpointCoords[1],
+          lon: midpointCoords[0],
+          tooltipText: `Insert vertex between ${item.z + 1} and ${nextItem.z + 1}`,
+        }
+      })
+    })
+  }, [editable, fencePolygonGroups])
 
   return (
     <>
@@ -72,7 +130,7 @@ export default function FenceItems({ fenceItems }) {
       {fencePolygonItems.map((item, index) => {
         return (
           <MarkerPin
-            key={index}
+            key={item.id || index}
             id={item.id}
             lat={intToCoord(item.x)}
             lon={intToCoord(item.y)}
@@ -82,25 +140,31 @@ export default function FenceItems({ fenceItems }) {
         )
       })}
 
+      {polygonEdgeInsertButtons.map((button) => (
+        <MidpointInsertButton
+          key={`${button.afterId}:${button.polygonStartIndex}`}
+          lat={button.lat}
+          lon={button.lon}
+          colour={tailwindColors.blue[400]}
+          tooltipText={button.tooltipText}
+          onClick={() => {
+            dispatch(
+              insertFencePolygonVertex({
+                afterId: button.afterId,
+                polygonStartIndex: button.polygonStartIndex,
+                polygonLength: button.polygonLength,
+                x: coordToInt(button.lat),
+                y: coordToInt(button.lon),
+              }),
+            )
+          }}
+        />
+      ))}
+
       {/* Group fencePolygonItems into separate polygons */}
       {(() => {
-        const polygons = []
-        let currentPolygon = []
-        let currentPoints = 0
-
-        fencePolygonItems.forEach((item) => {
-          currentPolygon.push(item)
-          currentPoints++
-
-          if (currentPoints === item.param1) {
-            polygons.push(currentPolygon)
-            currentPolygon = []
-            currentPoints = 0
-          }
-        })
-
-        return polygons.map((polygon, index) => {
-          const lastPolygonItem = polygon[polygon.length - 1]
+        return fencePolygonGroups.map((polygon, index) => {
+          const lastPolygonItem = polygon.items[polygon.items.length - 1]
 
           const color =
             lastPolygonItem.command === 5002
@@ -111,11 +175,14 @@ export default function FenceItems({ fenceItems }) {
             <DrawLineCoordinates
               key={index}
               coordinates={[
-                ...polygon.map((item) => [
+                ...polygon.items.map((item) => [
                   intToCoord(item.y),
                   intToCoord(item.x),
                 ]),
-                [intToCoord(polygon[0].y), intToCoord(polygon[0].x)],
+                [
+                  intToCoord(polygon.items[0].y),
+                  intToCoord(polygon.items[0].x),
+                ],
               ]}
               colour={color}
               lineProps={{ "line-width": 2, "line-dasharray": [4, 6] }}

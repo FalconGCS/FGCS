@@ -13,7 +13,12 @@ import { IconClock, IconNetwork, IconNetworkOff } from "@tabler/icons-react"
 
 // Redux
 import { useSelector } from "react-redux"
-import { selectAlt, selectBatteryData } from "../../redux/slices/droneInfoSlice"
+import {
+  selectAlt,
+  selectBatteryData,
+  selectHeartbeatLastReceivedAt,
+} from "../../redux/slices/droneInfoSlice"
+import { selectConnectedToDrone } from "../../redux/slices/droneConnectionSlice"
 import { selectIsConnectedToSocket } from "../../redux/slices/socketSlice"
 
 // Helper imports
@@ -36,9 +41,11 @@ export function StatusSection({ icon, value, tooltip }) {
 
 export default function StatusBar(props) {
   const isConnectedToSocket = useSelector(selectIsConnectedToSocket)
+  const isConnectedToDrone = useSelector(selectConnectedToDrone)
   const [time, setTime] = useState(moment())
   const batteryData = useSelector(selectBatteryData)
   const alt = useSelector(selectAlt)
+  const heartbeatLastReceivedAt = useSelector(selectHeartbeatLastReceivedAt)
 
   // Update clock every second
   useEffect(() => {
@@ -50,6 +57,7 @@ export default function StatusBar(props) {
   const { getSetting } = useSettings()
   const { dispatchAlert, dismissAlert } = useAlerts()
   const highestAltitudeRef = useRef(0)
+  const heartbeatAlertActiveRef = useRef(false)
 
   useEffect(() => {
     const maxAltitude = getSetting("Dashboard.maxAltitudeAlert")
@@ -125,6 +133,69 @@ export default function StatusBar(props) {
       }
     })
   }, [batteryData])
+
+  useEffect(() => {
+    const timeoutSeconds = Number(
+      getSetting("Dashboard.heartbeatTimeoutSeconds") ?? 10,
+    )
+    const timeoutMs = Number.isFinite(timeoutSeconds)
+      ? timeoutSeconds * 1000
+      : 10000
+
+    const checkHeartbeatTimeout = () => {
+      if (!isConnectedToDrone) {
+        if (heartbeatAlertActiveRef.current) {
+          dismissAlert(AlertCategory.Heartbeat)
+          heartbeatAlertActiveRef.current = false
+        }
+        return
+      }
+
+      if (heartbeatLastReceivedAt <= 0) {
+        if (heartbeatAlertActiveRef.current) {
+          dismissAlert(AlertCategory.Heartbeat)
+          heartbeatAlertActiveRef.current = false
+        }
+        return
+      }
+
+      const elapsedSeconds = Math.max(
+        0,
+        Math.floor((Date.now() - heartbeatLastReceivedAt) / 1000),
+      )
+      const isHeartbeatStale = elapsedSeconds * 1000 > timeoutMs
+
+      if (isHeartbeatStale) {
+        dispatchAlert({
+          category: AlertCategory.Heartbeat,
+          severity: AlertSeverity.Red,
+          dismissable: false,
+          jsx: (
+            <>
+              Caution! It has been {elapsedSeconds}s since the last heartbeat.
+            </>
+          ),
+        })
+        heartbeatAlertActiveRef.current = true
+        return
+      }
+
+      if (heartbeatAlertActiveRef.current) {
+        dismissAlert(AlertCategory.Heartbeat)
+        heartbeatAlertActiveRef.current = false
+      }
+    }
+
+    checkHeartbeatTimeout()
+    const id = setInterval(checkHeartbeatTimeout, 1000)
+    return () => clearInterval(id)
+  }, [
+    dismissAlert,
+    dispatchAlert,
+    getSetting,
+    heartbeatLastReceivedAt,
+    isConnectedToDrone,
+  ])
 
   return (
     <div className={`${props.className} flex flex-col items-end`}>

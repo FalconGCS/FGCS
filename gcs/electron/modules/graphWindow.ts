@@ -92,6 +92,7 @@ export function openGraphWindow(
       frame: true,
       icon: path.join(process.env.VITE_PUBLIC!, "app_icon.ico"),
       show: false,
+      backgroundColor: "#282c34",
       title: meta?.title ?? "Graph",
       webPreferences: {
         preload: path.join(__dirname, "preload.js"),

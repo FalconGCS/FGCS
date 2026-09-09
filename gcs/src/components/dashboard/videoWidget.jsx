@@ -24,18 +24,18 @@ import { useDispatch, useSelector } from "react-redux"
 import Webcam from "react-webcam"
 import GetOutsideVisibilityColor from "../../helpers/outsideVisibility"
 import {
-  selectVideoMaximized,
+  selectVideoMaximised,
   selectVideoScale,
   selectVideoSource,
-  setVideoMaximized,
+  setVideoMaximised,
   setVideoScale,
   setVideoSource,
 } from "../../redux/slices/droneConnectionSlice"
 import VideoWidgetSourceSelectModal from "./videoWidgetSourceSelectModal"
 
-export default function VideoWidget({ telemetryPanelWidth }) {
+export default function VideoWidget() {
   const videoSource = useSelector(selectVideoSource)
-  const isMaximized = useSelector(selectVideoMaximized)
+  const isMaximised = useSelector(selectVideoMaximised)
   const scale = useSelector(selectVideoScale) // Scale factor for resizing
   const dispatch = useDispatch()
 
@@ -57,11 +57,11 @@ export default function VideoWidget({ telemetryPanelWidth }) {
   const jsmpegPlayerRef = useRef(null)
 
   function minimizeVideoWidget() {
-    dispatch(setVideoMaximized(false))
+    dispatch(setVideoMaximised(false))
   }
 
-  function maximizeVideoWidget() {
-    dispatch(setVideoMaximized(true))
+  function maximiseVideoWidget() {
+    dispatch(setVideoMaximised(true))
   }
 
   function handleResizeStart(e) {
@@ -365,34 +365,34 @@ export default function VideoWidget({ telemetryPanelWidth }) {
       />
 
       {/* Minimized view */}
-      {!isMaximized && !isPoppedOut && (
+      {!isMaximised && !isPoppedOut && (
         <div
-          className="absolute bottom-2 rounded-md z-10"
-          style={{
-            left: `${telemetryPanelWidth + 8}px`,
-            background: GetOutsideVisibilityColor(),
-          }}
+          className="rounded-md"
+          style={{ background: GetOutsideVisibilityColor() }}
         >
-          <div className="p-2 flex items-center gap-2">
-            {videoSource && error === null ? (
-              <div
-                className="w-2 h-2 bg-green-500 rounded-full"
-                title="Video active"
-              />
-            ) : error ? (
-              <IconAlertCircle size={16} className="text-falconred" />
-            ) : (
-              <IconVideo size={16} className="text-slate-500" />
-            )}
-            <Text size="sm" className="truncate max-w-[150px]">
-              {videoSource?.name || "No video selected"}
-            </Text>
+          <div className="p-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {videoSource && error === null ? (
+                <div
+                  className="w-2 h-2 bg-green-500 rounded-full"
+                  title="Video active"
+                />
+              ) : error ? (
+                <IconAlertCircle size={16} className="text-falconred" />
+              ) : (
+                <IconVideo size={16} className="text-slate-500" />
+              )}
+              <Text size="sm" className="truncate max-w-[150px]">
+                {videoSource?.name || "No video selected"}
+              </Text>
+            </div>
+
             <ActionIcon
               size="sm"
               variant="subtle"
-              onClick={maximizeVideoWidget}
+              onClick={maximiseVideoWidget}
               className="text-slate-400 hover:text-slate-200"
-              title="Maximize video widget"
+              title="Maximise video widget"
             >
               <IconMaximize size={16} />
             </ActionIcon>
@@ -401,13 +401,10 @@ export default function VideoWidget({ telemetryPanelWidth }) {
       )}
 
       {/* Full view */}
-      {isMaximized && (
+      {isMaximised && (
         <div
-          className={`absolute bottom-2 min-w-[350px] rounded-md z-10 ${isPoppedOut ? "hidden" : ""}`}
-          style={{
-            left: `${telemetryPanelWidth + 8}px`,
-            background: GetOutsideVisibilityColor(),
-          }}
+          className="min-w-[350px] min-h-[253px] rounded-md flex flex-col"
+          style={{ background: GetOutsideVisibilityColor() }}
         >
           <div className="p-2">
             <div className="flex items-center justify-between mb-2">

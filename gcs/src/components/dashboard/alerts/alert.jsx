@@ -22,10 +22,14 @@ export default function AlertSection() {
           <Alert
             variant="outline"
             color={SeverityColor[alert.severity]}
-            withCloseButton
+            withCloseButton={alert.dismissable !== false}
             title={alert.category}
             icon={<IconAlertTriangle />}
-            onClose={() => dismissAlert(alert.category, true)}
+            onClose={
+              alert.dismissable === false
+                ? undefined
+                : () => dismissAlert(alert.category, true)
+            }
           >
             {alert.jsx}
           </Alert>

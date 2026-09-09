@@ -120,7 +120,7 @@ yarn dev
 **Terminal 3 - SITL Simulator (Optional):**
 
 ```bash
-docker run -it --rm -p 5760:5760 kushmakkapati/ardupilot_sitl
+docker run -it --rm -p 5760:5760 -v fgcs_ardupilot_cache:/ardupilot_cache kushmakkapati/ardupilot_sitl
 ```
 
 ### Running the Simulator
@@ -136,7 +136,7 @@ docker run -it --rm -p 5760:5760 kushmakkapati/ardupilot_sitl
 2. **Start basic simulator (ArduCopter):**
 
    ```bash
-   docker run -it --rm -p 5760:5760 kushmakkapati/ardupilot_sitl
+   docker run -it --rm -p 5760:5760 -v fgcs_ardupilot_cache:/ardupilot_cache kushmakkapati/ardupilot_sitl
    ```
 
 3. **Connect FGCS to simulator:**
@@ -149,11 +149,54 @@ docker run -it --rm -p 5760:5760 kushmakkapati/ardupilot_sitl
 
 ```bash
 # ArduPlane
-docker run -it --rm -p 5760:5760 kushmakkapati/ardupilot_sitl VEHICLE=ArduPlane
+docker run -it --rm -p 5760:5760 -v fgcs_ardupilot_cache:/ardupilot_cache kushmakkapati/ardupilot_sitl VEHICLE=ArduPlane
 
-# ArduRover
-docker run -it --rm -p 5760:5760 kushmakkapati/ardupilot_sitl VEHICLE=ArduRover
+# ArduCopter
+docker run -it --rm -p 5760:5760 -v fgcs_ardupilot_cache:/ardupilot_cache kushmakkapati/ardupilot_sitl VEHICLE=ArduCopter
 ```
+
+##### Firmware Version Selection
+
+```bash
+# Pinned release (recommended format)
+docker run -it --rm -p 5760:5760 -v fgcs_ardupilot_cache:/ardupilot_cache kushmakkapati/ardupilot_sitl VEHICLE=ArduCopter FIRMWARE_VERSION=4.6.3
+
+# Plane pinned release
+docker run -it --rm -p 5760:5760 -v fgcs_ardupilot_cache:/ardupilot_cache kushmakkapati/ardupilot_sitl VEHICLE=ArduPlane FIRMWARE_VERSION=4.6.3
+
+# Dynamic selectors
+docker run -it --rm -p 5760:5760 -v fgcs_ardupilot_cache:/ardupilot_cache kushmakkapati/ardupilot_sitl VEHICLE=ArduCopter FIRMWARE_VERSION=latest
+docker run -it --rm -p 5760:5760 -v fgcs_ardupilot_cache:/ardupilot_cache kushmakkapati/ardupilot_sitl VEHICLE=ArduCopter FIRMWARE_VERSION=stable
+docker run -it --rm -p 5760:5760 -v fgcs_ardupilot_cache:/ardupilot_cache kushmakkapati/ardupilot_sitl VEHICLE=ArduCopter FIRMWARE_VERSION=beta
+```
+
+Accepted firmware selectors:
+
+- `latest`, `stable`, `beta`
+- `4.x.y` (resolved to `Copter-4.x.y` for ArduCopter and `Plane-4.x.y` for ArduPlane)
+- `Copter-4.x.y` / `Plane-4.x.y`
+- `ArduCopter-stable` / `ArduCopter-beta` / `ArduPlane-stable` / `ArduPlane-beta`
+
+Note: pass `VEHICLE=...` and `FIRMWARE_VERSION=...` as trailing command arguments (as shown above), not as `-e` environment variables.
+
+Using `-v fgcs_ardupilot_cache:/ardupilot_cache` is recommended so pinned versions are reused between runs.
+
+##### Dynamic Selector Update Behavior (`latest` / `stable` / `beta`)
+
+When you use `FIRMWARE_VERSION=latest` (same idea for `stable` and `beta`), the launcher treats it as a dynamic channel and resolves the current upstream ref each run.
+
+Example timeline:
+
+1. Day 1: run with `latest`. The container checks out the current upstream ref and builds SITL if needed.
+2. Day 2: upstream `latest` moves to a newer commit/tag.
+3. Day 3: run again with `latest`. The launcher resolves the new ref, checks it out, detects commit change, and rebuilds so the binary matches the checked-out source.
+
+This prevents stale binaries from being reused after a ref change.
+
+Important cache note:
+
+- `fgcs_ardupilot_cache` is primarily used for pinned versions (`4.x.y`) under `/ardupilot_cache`.
+- Dynamic channels use the default worktree (`/ardupilot`). With `--rm`, container filesystem state is ephemeral between runs, so dynamic channels may refetch/rebuild more often.
 
 ##### Custom Starting Location
 
@@ -259,4 +302,49 @@ If you want to re-run the tests without re-building:
 
 ```bash
 yarn test:nobuild
+```
+
+## Automated Desktop Releases
+
+Desktop release artifacts are built automatically when a version tag is pushed.
+
+### Trigger
+
+Push a tag in semver format prefixed with `v`:
+
+```bash
+git tag v0.2.8-alpha.1
+git push origin v0.2.8-alpha.1
+```
+
+The workflow creates or updates a draft GitHub Release and uploads installers.
+
+### Restrict Who Can Release
+
+The workflow enforces two checks before building:
+
+- `RELEASE_ALLOWED_OWNER` must match the repository owner.
+- `RELEASE_ALLOWED_ACTOR` must match the GitHub username that pushed the tag.
+
+### Produced Artifacts
+
+- Windows x64: `FGCS-Windows-<version>-Setup.exe`
+- macOS x64: `FGCS-Mac-<version>-Installer-x64.dmg`
+- macOS arm64: `FGCS-Mac-<version>-Installer-arm64.dmg`
+
+### Publishing
+
+Releases are uploaded as drafts. After validating artifacts, publish the draft release in GitHub.
+
+### Rollback
+
+If a tagged release fails:
+
+1. Delete the tag locally and remotely.
+2. Fix the issue.
+3. Recreate and push the tag.
+
+```bash
+git tag -d v0.2.8-alpha.1
+git push origin :refs/tags/v0.2.8-alpha.1
 ```

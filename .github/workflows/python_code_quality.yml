@@ -19,6 +19,7 @@ on:
 
 jobs:
   build:
+    name: Run Python quality checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -28,7 +29,9 @@ jobs:
           python-version: '3.11'
 
       - run: pip install --upgrade pip
-      - run: pip install ruff mypy
+
+      - name: Install ruff and mypy
+        run: pip install $(grep -E '^(ruff|mypy)==' radio/requirements.txt)
 
       - name: Run ruff
         working-directory: ./radio

@@ -39,6 +39,7 @@ import {
   emitSetCurrentFlightMode,
   emitSetLoiterRadius,
   emitSetState,
+  emitSetStreamRates,
   emitStartForwarding,
   emitStopForwarding,
   emitTakeoff,
@@ -98,7 +99,17 @@ export function handleEmitters(socket, store, action) {
     },
     {
       emitter: emitDisconnectFromDrone,
-      callback: () => socket.socket.emit("disconnect_from_drone"),
+      callback: () => {
+        const storeState = store.getState()
+        const isConnecting = storeState.droneConnection.connecting
+
+        if (isConnecting) {
+          socket.socket.emit("cancel_connect_to_drone")
+          return
+        }
+
+        socket.socket.emit("disconnect_from_drone")
+      },
     },
     {
       emitter: emitConnectToDrone,
@@ -226,6 +237,14 @@ export function handleEmitters(socket, store, action) {
           newFlightMode: action.payload.newFlightMode,
         }),
     },
+    {
+      emitter: emitSetStreamRates,
+      callback: () =>
+        socket.socket.emit("set_stream_rate", {
+          stream: action.payload.stream,
+          rate: action.payload.rate,
+        }),
+    },
 
     {
       emitter: emitStartSimulation,
@@ -302,13 +321,14 @@ export function handleEmitters(socket, store, action) {
       emitter: emitControlMission,
       callback: () => {
         const controlAction = action.payload.action
-        if (!["start", "restart"].includes(controlAction))
+        if (!["start", "restart", "set_current"].includes(controlAction))
           return console.error(
             `Invalid control mission action, got ${controlAction}`,
           )
 
         socket.socket.emit("control_mission", {
           action: controlAction,
+          ...(controlAction === "set_current" && { seq: action.payload.seq }),
         })
       },
     },

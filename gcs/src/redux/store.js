@@ -1,6 +1,11 @@
 import { combineSlices, configureStore } from "@reduxjs/toolkit"
 import { defaultDataMessages } from "../helpers/dashboardDefaultDataMessages"
+import {
+  KML_PRESENTATION_STORAGE_KEY,
+  toKmlPresentationConfig,
+} from "../helpers/kml"
 import armedMiddleware from "./middleware/armedMiddleware"
+import heartbeatMonitorMiddleware from "./middleware/heartbeatMonitorMiddleware"
 import socketMiddleware from "./middleware/socketMiddleware"
 import applicationSlice from "./slices/applicationSlice"
 import checklistSlice, { setChecklistItems } from "./slices/checklistSlice"
@@ -16,14 +21,21 @@ import droneConnectionSlice, {
   setOutsideVisibility,
   setPort,
   setSelectedComPorts,
+  setStatusTextSize,
 } from "./slices/droneConnectionSlice"
 import droneInfoSlice, {
   setGraphValues,
   setSelectedDisplayTelemetry,
 } from "./slices/droneInfoSlice"
 import ftpSlice from "./slices/ftpSlice"
-import logAnalyserSlice from "./slices/logAnalyserSlice"
-import missionInfoSlice, { setPlannedHomePosition } from "./slices/missionSlice"
+import kmlSlice from "./slices/kmlSlice"
+import logAnalyserSlice, {
+  setPersistentColorMap,
+} from "./slices/logAnalyserSlice"
+import missionInfoSlice, {
+  setDefaultWaypointAltitude,
+  setPlannedHomePosition,
+} from "./slices/missionSlice"
 import paramsSlice from "./slices/paramsSlice"
 import simulationParamsSlice from "./slices/simulationParamsSlice"
 import socketSlice from "./slices/socketSlice"
@@ -43,6 +55,7 @@ const rootReducer = combineSlices(
   dashboardSlice,
   ftpSlice,
   simulationParamsSlice,
+  kmlSlice,
 )
 
 export const store = configureStore({
@@ -51,7 +64,7 @@ export const store = configureStore({
     return getDefaultMiddleware({
       immutableCheck: false,
       serializableCheck: false,
-    }).concat([socketMiddleware, armedMiddleware])
+    }).concat([socketMiddleware, heartbeatMonitorMiddleware, armedMiddleware])
   },
 })
 
@@ -99,6 +112,42 @@ if (isForwarding !== null) {
 const outsideVisibility = localStorage.getItem("outsideVisibility")
 if (outsideVisibility !== null) {
   store.dispatch(setOutsideVisibility(outsideVisibility === "true"))
+}
+
+const statusTextSize = localStorage.getItem("statusTextSize")
+if (statusTextSize !== null) {
+  try {
+    const parsedStatusTextSize = JSON.parse(statusTextSize)
+    if (
+      parsedStatusTextSize &&
+      typeof parsedStatusTextSize === "object" &&
+      typeof parsedStatusTextSize.width === "number" &&
+      typeof parsedStatusTextSize.height === "number"
+    ) {
+      store.dispatch(setStatusTextSize(parsedStatusTextSize))
+    }
+  } catch {
+    console.log("Failed to parse statusTextSize from local storage.")
+  }
+} else {
+  // Backwards compatibility with legacy separate keys.
+  const legacyStatusTextWidth = localStorage.getItem("statusTextWidth")
+  const legacyStatusTextHeight = localStorage.getItem("statusTextHeight")
+  if (legacyStatusTextWidth !== null && legacyStatusTextHeight !== null) {
+    const parsedStatusTextWidth = Number(legacyStatusTextWidth)
+    const parsedStatusTextHeight = Number(legacyStatusTextHeight)
+    if (
+      !Number.isNaN(parsedStatusTextWidth) &&
+      !Number.isNaN(parsedStatusTextHeight)
+    ) {
+      store.dispatch(
+        setStatusTextSize({
+          width: parsedStatusTextWidth,
+          height: parsedStatusTextHeight,
+        }),
+      )
+    }
+  }
 }
 
 const preFlightChecklist = localStorage.getItem("preFlightChecklist")
@@ -171,6 +220,27 @@ if (plannedHomePosition !== null) {
     }
   } catch (error) {
     store.dispatch(setPlannedHomePosition({ lat: 0, lon: 0, alt: 0 }))
+  }
+}
+
+const defaultWaypointAltitude = localStorage.getItem("defaultWaypointAltitude")
+if (defaultWaypointAltitude !== null) {
+  const parsedDefaultWaypointAltitude = Number(defaultWaypointAltitude)
+  if (Number.isFinite(parsedDefaultWaypointAltitude)) {
+    store.dispatch(setDefaultWaypointAltitude(parsedDefaultWaypointAltitude))
+  }
+}
+
+const persistentColorMap = localStorage.getItem("flaPersistentColorMap")
+if (persistentColorMap !== null) {
+  try {
+    const parsedColorMap = JSON.parse(persistentColorMap)
+    if (parsedColorMap && typeof parsedColorMap === "object") {
+      store.dispatch(setPersistentColorMap(parsedColorMap))
+    }
+  } catch {
+    console.log("Failed to parse persistent color map from localStorage")
+    store.dispatch(setPersistentColorMap({}))
   }
 }
 
@@ -247,6 +317,9 @@ function mergeSelectedDisplayTelemetryConfigWithDefaults(persistedConfig) {
   })
 }
 
+let prevPersistentColorMap = store.getState().logAnalyser.persistentColorMap
+let prevKmlLayers = store.getState().kml.layers
+
 // Update states when a new message comes in
 store.subscribe(() => {
   const store_mut = store.getState()
@@ -305,6 +378,18 @@ store.subscribe(() => {
     )
   }
 
+  if (
+    store_mut.droneConnection.statusTextSize &&
+    typeof store_mut.droneConnection.statusTextSize === "object" &&
+    typeof store_mut.droneConnection.statusTextSize.width === "number" &&
+    typeof store_mut.droneConnection.statusTextSize.height === "number"
+  ) {
+    updateJSONLocalStorageIfChanged(
+      "statusTextSize",
+      store_mut.droneConnection.statusTextSize,
+    )
+  }
+
   if (typeof store_mut.droneInfo.graphs.selectedGraphs === "object") {
     updateJSONLocalStorageIfChanged(
       "selectedRealtimeGraphs",
@@ -347,5 +432,35 @@ store.subscribe(() => {
       "plannedHomePosition",
       store_mut.missionInfo.plannedHomePosition,
     )
+  }
+
+  // Store the altitude given to newly added mission waypoints
+  if (typeof store_mut.missionInfo.defaultWaypointAltitude === "number") {
+    updateLocalStorageIfChanged(
+      "defaultWaypointAltitude",
+      store_mut.missionInfo.defaultWaypointAltitude,
+    )
+  }
+
+  const currentPersistentColorMap = store_mut.logAnalyser.persistentColorMap
+  if (
+    currentPersistentColorMap !== prevPersistentColorMap &&
+    currentPersistentColorMap &&
+    typeof currentPersistentColorMap === "object"
+  ) {
+    updateJSONLocalStorageIfChanged(
+      "flaPersistentColorMap",
+      currentPersistentColorMap,
+    )
+    prevPersistentColorMap = currentPersistentColorMap
+  }
+
+  const currentKmlLayers = store_mut.kml.layers
+  if (currentKmlLayers !== prevKmlLayers) {
+    updateJSONLocalStorageIfChanged(
+      KML_PRESENTATION_STORAGE_KEY,
+      toKmlPresentationConfig(currentKmlLayers),
+    )
+    prevKmlLayers = currentKmlLayers
   }
 })

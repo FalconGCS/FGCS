@@ -43,6 +43,7 @@ import {
   selectCanSavePreset,
   selectCanShowMapPositionData,
   selectFile,
+  selectFirmwareVersion,
   selectFlightModeMessages,
   selectLogEvents,
   selectMapPositionData,
@@ -113,6 +114,7 @@ export default function Graph({ data, customColors, openPresetModal }) {
   const flightModes = useSelector(selectFlightModeMessages)
   const canSavePreset = useSelector(selectCanSavePreset)
   const aircraftType = useSelector(selectAircraftType)
+  const firmwareVersion = useSelector(selectFirmwareVersion)
   const params = useSelector(selectParams)
   const file = useSelector(selectFile)
   const fileName = file?.name
@@ -550,6 +552,8 @@ export default function Graph({ data, customColors, openPresetModal }) {
       window.ipcRenderer.invoke("app:open-fla-params-window", {
         params,
         fileName,
+        aircraftType,
+        firmwareVersion,
       })
     } catch (error) {
       showErrorNotification(error)

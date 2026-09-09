@@ -3,7 +3,7 @@
 */
 
 // Base imports
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 // 3rd Party Imports
 import { ResizableBox } from "react-resizable"
@@ -28,6 +28,7 @@ import MissionStatistics from "./components/missions/missionStatistics"
 import MissionsMapSection from "./components/missions/missionsMap"
 import RallyItemsTable from "./components/missions/rallyItemsTable"
 import { coordToInt, intToCoord } from "./helpers/dataFormatters"
+import { buildMissionElevationProfile } from "./helpers/missionElevationProfile"
 
 // Redux
 import { useDispatch, useSelector } from "react-redux"
@@ -53,6 +54,7 @@ import {
   emitWriteCurrentMission,
   getFrameKey,
   selectActiveTab,
+  selectDefaultWaypointAltitude,
   selectDrawingFenceItems,
   selectDrawingMissionItems,
   selectDrawingRallyItems,
@@ -62,6 +64,7 @@ import {
   selectTargetInfo,
   selectUnwrittenChanges,
   setActiveTab,
+  setDefaultWaypointAltitude,
   setMissionProgressData,
   setMissionProgressModal,
   setPlannedHomePosition,
@@ -130,6 +133,11 @@ export default function Missions() {
     plannedHomePosition?.alt ?? 0.1,
   )
 
+  const defaultWaypointAltitude = useSelector(selectDefaultWaypointAltitude)
+  const [defaultAltitudeInput, setDefaultAltitudeInput] = useState(
+    defaultWaypointAltitude,
+  )
+
   useEffect(() => {
     if (tabsListRef.current) {
       // Set initial height of the table section when component mounts
@@ -185,7 +193,7 @@ export default function Missions() {
       x: plannedHomePosition.lat,
       y: plannedHomePosition.lon,
       z: plannedHomePosition.alt || 0,
-      frame: getFrameKey("MAV_FRAME_GLOBAL"),
+      frame: getFrameKey("GLOBAL"),
       command: 16, // MAV_CMD_NAV_WAYPOINT
       param1: 0,
       param2: 0,
@@ -305,6 +313,36 @@ export default function Missions() {
     }
   }
 
+  const sendElevationGraphUpdate = useCallback(() => {
+    if (!window.ipcRenderer) return
+
+    const profile = buildMissionElevationProfile(
+      missionItems,
+      aircraftType,
+      plannedHomePosition,
+    )
+    window.ipcRenderer
+      .invoke("app:update-elevation-graph", profile)
+      .catch((err) => {
+        console.error("Failed to update elevation graph:", err)
+      })
+  }, [missionItems, aircraftType, plannedHomePosition])
+
+  const openElevationGraph = useCallback(() => {
+    if (!window.ipcRenderer) return
+
+    window.ipcRenderer
+      .invoke("app:open-elevation-graph-window")
+      .then(() => sendElevationGraphUpdate())
+      .catch((err) => {
+        console.error("Failed to open elevation graph window:", err)
+      })
+  }, [sendElevationGraphUpdate])
+
+  useEffect(() => {
+    sendElevationGraphUpdate()
+  }, [sendElevationGraphUpdate])
+
   return (
     <Layout currentPage="missions">
       <Modal
@@ -418,6 +456,29 @@ export default function Missions() {
               <Divider className="my-1" />
 
               <div className="flex flex-col gap-2">
+                <NumberInput
+                  label="Default waypoint altitude"
+                  value={defaultAltitudeInput}
+                  onChange={(val) => {
+                    setDefaultAltitudeInput(val)
+                    if (isInvalidInputNumber(val)) return
+                    dispatch(setDefaultWaypointAltitude(val))
+                  }}
+                  onBlur={() => {
+                    if (isInvalidInputNumber(defaultAltitudeInput)) {
+                      setDefaultAltitudeInput(defaultWaypointAltitude)
+                    }
+                  }}
+                  min={0}
+                  allowNegative={false}
+                  suffix="m"
+                  hideControls
+                />
+              </div>
+
+              <Divider className="my-1" />
+
+              <div className="flex flex-col gap-2">
                 <p className="font-bold">
                   Planned home{" "}
                   <span>
@@ -521,6 +582,7 @@ export default function Missions() {
                 missionItems={missionItems}
                 fenceItems={fenceItems}
                 rallyItems={rallyItems}
+                onOpenElevationGraph={openElevationGraph}
               />
             </div>
 

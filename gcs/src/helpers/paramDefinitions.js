@@ -29,8 +29,8 @@ function getAircraftKey(aircraftType) {
   return null
 }
 
-function parseMajorMinor(flightSwVersion) {
-  const match = String(flightSwVersion || "").match(/(\d+)\.(\d+)/)
+export function parseMajorMinorVersion(versionString) {
+  const match = String(versionString || "").match(/(\d+)\.(\d+)/)
   if (!match) {
     return null
   }
@@ -85,6 +85,43 @@ function findModulePath(aircraftKey, version) {
   return modulePathByFileName[manifestFileName] || null
 }
 
+export function resolveParamDefinitionVersion(aircraftKey, versionString) {
+  const requestedVersion = parseMajorMinorVersion(versionString)
+  const resolvedVersion = getResolvedVersion(aircraftKey, requestedVersion)
+
+  return {
+    requestedVersion,
+    resolvedVersion,
+  }
+}
+
+export async function loadParamDefinitionsForVersion(
+  aircraftKey,
+  versionString,
+) {
+  const { requestedVersion, resolvedVersion } = resolveParamDefinitionVersion(
+    aircraftKey,
+    versionString,
+  )
+
+  const modulePath = findModulePath(aircraftKey, resolvedVersion)
+  if (!modulePath) {
+    return {
+      paramDefs: {},
+      requestedVersion,
+      resolvedVersion,
+    }
+  }
+
+  const loadedModule = await paramDefinitionModules[modulePath]()
+
+  return {
+    paramDefs: loadedModule.default || {},
+    requestedVersion,
+    resolvedVersion,
+  }
+}
+
 export function useParamDefinitions() {
   const aircraftType = useSelector(selectAircraftType)
   const flightSwVersion = useSelector(selectFlightSwVersion)
@@ -95,36 +132,26 @@ export function useParamDefinitions() {
     [aircraftType],
   )
 
-  const requestedVersion = useMemo(
-    () => parseMajorMinor(flightSwVersion),
-    [flightSwVersion],
-  )
-
-  const resolvedVersion = useMemo(
-    () => getResolvedVersion(aircraftKey, requestedVersion),
-    [aircraftKey, requestedVersion],
+  const { requestedVersion, resolvedVersion } = useMemo(
+    () => resolveParamDefinitionVersion(aircraftKey, flightSwVersion),
+    [aircraftKey, flightSwVersion],
   )
 
   useEffect(() => {
-    const modulePath = findModulePath(aircraftKey, resolvedVersion)
-
-    if (!modulePath) {
-      setParamDefs({})
-      return
-    }
-
     let cancelled = false
 
-    paramDefinitionModules[modulePath]().then((loadedModule) => {
-      if (!cancelled) {
-        setParamDefs(loadedModule.default || {})
-      }
-    })
+    loadParamDefinitionsForVersion(aircraftKey, flightSwVersion).then(
+      (result) => {
+        if (!cancelled) {
+          setParamDefs(result.paramDefs)
+        }
+      },
+    )
 
     return () => {
       cancelled = true
     }
-  }, [aircraftKey, resolvedVersion])
+  }, [aircraftKey, flightSwVersion])
 
   return {
     paramDefs,

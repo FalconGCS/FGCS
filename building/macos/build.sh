@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build FGCS for macOS (arm64 by default). Run from any directory.
-# Usage: ./build.sh [version]
-# If no version is provided, the script will show current version and prompt for new one
+# Build FGCS for macOS. Run from any directory.
+# Usage: ./build.sh [version] [arch]
+# version: optional, will prompt if not provided
+# arch: optional (x64 or arm64), defaults to host architecture if not specified
 
 VERSION="${1:-}"
+ARCH="${2:-}"
 
 echo "Assuming location is FGCS/building/macos"
 cd ../../
@@ -78,6 +80,14 @@ echo "Generated log message descriptions"
 cd ../
 yarn
 yarn version --new-version "$VERSION" --no-git-tag-version --no-commit-hooks
-yarn build
+
+# Build with optional arch specification
+if [[ -n "$ARCH" ]]; then
+  echo "Building for architecture: $ARCH"
+  yarn build --arch="$ARCH"
+else
+  echo "Building for host architecture"
+  yarn build
+fi
 
 echo "Build finished, check gcs/release/${VERSION} for output."

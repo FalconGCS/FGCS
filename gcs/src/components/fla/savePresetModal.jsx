@@ -10,6 +10,7 @@ import {
 } from "../../helpers/notification.js"
 import {
   selectAircraftType,
+  selectCustomColors,
   selectLogType,
   selectMessageFilters,
   setCanSavePreset,
@@ -25,6 +26,7 @@ export default function SavePresetModal({
   const dispatch = useDispatch()
   const logType = useSelector(selectLogType)
   const messageFilters = useSelector(selectMessageFilters)
+  const customColors = useSelector(selectCustomColors)
   const aircraftType = useSelector(selectAircraftType)
 
   const [presetName, setPresetName] = useState("")
@@ -51,6 +53,7 @@ export default function SavePresetModal({
       const newPreset = {
         name: presetName,
         filters: currentFilters,
+        customColors: customColors,
         aircraftType: aircraftType ? [aircraftType] : undefined, // Only save the aircraft type if it exists
       }
 

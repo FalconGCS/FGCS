@@ -622,3 +622,97 @@ def test_exportMissionToFile_noWaypoints(
         "success": False,
         "message": "No waypoints loaded for the mission type of mission",
     }
+
+
+def test_controlMission_wrongState(socketio_client: SocketIOTestClient, droneStatus):
+    droneStatus.state = "missions"
+
+    socketio_client.emit("control_mission", {"action": "set_current", "seq": 1})
+    result = socketio_client.get_received()[-1]
+
+    assert result["name"] == "params_error"
+    assert result["args"][0] == {
+        "message": "You must be on the dashboard screen to control a mission."
+    }
+
+
+def test_controlMission_notConnected(socketio_client: SocketIOTestClient, droneStatus):
+    droneStatus.state = "dashboard"
+
+    with NoDrone():
+        socketio_client.emit("control_mission", {"action": "set_current", "seq": 1})
+        result = socketio_client.get_received()[-1]
+
+    assert result["name"] == "connection_error"
+
+
+def test_controlMission_invalidAction(socketio_client: SocketIOTestClient, droneStatus):
+    droneStatus.state = "dashboard"
+
+    socketio_client.emit("control_mission", {"action": "not_an_action"})
+    result = socketio_client.get_received()[-1]
+
+    assert result["name"] == "params_error"
+    assert result["args"][0] == {
+        "message": "Invalid action for controlling the mission, got not_an_action."
+    }
+
+
+def test_controlMission_setCurrent_missingSeq(
+    socketio_client: SocketIOTestClient, droneStatus
+):
+    droneStatus.state = "dashboard"
+
+    socketio_client.emit("control_mission", {"action": "set_current"})
+    result = socketio_client.get_received()[-1]
+
+    assert result["name"] == "params_error"
+    assert result["args"][0] == {
+        "message": "No mission item number specified to set as current."
+    }
+
+
+def test_controlMission_setCurrent_negativeSeq(
+    socketio_client: SocketIOTestClient, droneStatus
+):
+    droneStatus.state = "dashboard"
+
+    socketio_client.emit("control_mission", {"action": "set_current", "seq": -1})
+    result = socketio_client.get_received()[-1]
+
+    assert result["name"] == "mission_control_result"
+    assert result["args"][0] == {
+        "success": False,
+        "message": "Mission item number must not be negative, got -1",
+    }
+
+
+def test_controlMission_setCurrent_nonIntegerSeq(
+    socketio_client: SocketIOTestClient, droneStatus
+):
+    droneStatus.state = "dashboard"
+
+    socketio_client.emit("control_mission", {"action": "set_current", "seq": "2"})
+    result = socketio_client.get_received()[-1]
+
+    assert result["name"] == "mission_control_result"
+    assert result["args"][0] == {
+        "success": False,
+        "message": "Mission item number must be an integer, got 2",
+    }
+
+
+@pytest.mark.usefixtures("upload_default_mission")
+def test_controlMission_setCurrent_success(
+    socketio_client: SocketIOTestClient, droneStatus
+):
+    droneStatus.state = "dashboard"
+
+    socketio_client.emit("control_mission", {"action": "set_current", "seq": 2})
+    result = socketio_client.get_received()[-1]
+
+    assert result["name"] == "mission_control_result"
+    assert result["args"][0] == {
+        "success": True,
+        "message": "Set current mission item to 2",
+    }

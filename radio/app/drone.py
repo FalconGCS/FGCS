@@ -46,6 +46,7 @@ DATASTREAM_RATES = {
     mavutil.mavlink.MAV_DATA_STREAM_RAW_SENSORS: 1,
     mavutil.mavlink.MAV_DATA_STREAM_EXTENDED_STATUS: 1,
     mavutil.mavlink.MAV_DATA_STREAM_RC_CHANNELS: 1,
+    mavutil.mavlink.MAV_DATA_STREAM_RAW_CONTROLLER: 1,
     mavutil.mavlink.MAV_DATA_STREAM_POSITION: 1,
     mavutil.mavlink.MAV_DATA_STREAM_EXTRA1: 4,
     mavutil.mavlink.MAV_DATA_STREAM_EXTRA2: 3,
@@ -84,6 +85,7 @@ class Drone:
         droneConnectStatusCb: Optional[Callable] = None,
         linkDebugStatsCb: Optional[Callable] = None,
         fetchingParameterCb: Optional[Callable] = None,
+        connectionCancelEvent: Optional[Event] = None,
     ) -> None:
         """
         The drone class interfaces with the UAS via MavLink.
@@ -94,6 +96,9 @@ class Drone:
             droneErrorCb (Optional[Callable], optional): Callback function for drone errors. Defaults to None.
             droneDisconnectCb (Optional[Callable], optional): Callback function for drone disconnection. Defaults to None.
             droneConnectStatusCb (Optional[Callable], optional): Callback function for drone connection providing an update as the drone connects. Defaults to None.
+            linkDebugStatsCb (Optional[Callable], optional): Callback function for link debug stats. Defaults to None.
+            fetchingParameterCb (Optional[Callable], optional): Callback function for when parameters are being fetched. Defaults to None.
+            connectionCancelEvent (Optional[Event], optional): Event to signal if the connection process should be cancelled. Defaults to None.
         """
         self.port = port
         self.baud = baud
@@ -103,6 +108,7 @@ class Drone:
         self.droneConnectStatusCb = droneConnectStatusCb
         self.linkDebugStatsCb = linkDebugStatsCb
         self.fetchingParameterCb = fetchingParameterCb
+        self.connection_cancel_event: Event = connectionCancelEvent or Event()
 
         self.connectionError: Optional[str] = None
         self._last_connect_progress: float = 0.0
@@ -147,13 +153,61 @@ class Drone:
                 self.connectionError = str(e)
             return
 
+        if self._isConnectionCancelRequested():
+            self._setCancelledConnectionErrorAndCloseMaster()
+            return
+
         try:
-            initial_heartbeat = self.master.wait_heartbeat(timeout=5)
+            self.master.mav.heartbeat_send(
+                mavutil.mavlink.MAV_TYPE_GCS,
+                mavutil.mavlink.MAV_AUTOPILOT_INVALID,
+                0,
+                0,
+                mavutil.mavlink.MAV_STATE_ACTIVE,
+            )
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to send initial outgoing heartbeat: {e}", exc_info=True
+            )
+
+        try:
+            initial_heartbeat = None
+            heartbeat_timeout_secs = 5.0
+            deadline = time.monotonic() + heartbeat_timeout_secs
+
+            while True:
+                if self._isConnectionCancelRequested():
+                    self._setCancelledConnectionErrorAndCloseMaster()
+                    return
+
+                now = time.monotonic()
+                if now >= deadline:
+                    break
+
+                remaining = deadline - now
+                heartbeat = self.master.recv_match(
+                    type="HEARTBEAT", blocking=True, timeout=max(remaining, 0.0)
+                )
+
+                if heartbeat is None:
+                    continue
+
+                # Ignore heartbeats from non-autopilot MAVLink components.
+                if heartbeat.autopilot == mavutil.mavlink.MAV_AUTOPILOT_INVALID:
+                    continue
+
+                initial_heartbeat = heartbeat
+                break
+
             if initial_heartbeat is None:
-                self.logger.error("Heartbeat timed out after 5 seconds")
+                self.logger.error(
+                    f"No heartbeat received after {heartbeat_timeout_secs:.0f} seconds"
+                )
                 self.master.close()
                 self.master = None
-                self.connectionError = "Could not connect to the drone."
+                self.connectionError = (
+                    f"No heartbeat received after {heartbeat_timeout_secs:.0f} seconds."
+                )
                 return
         except Exception as e:
             self.logger.error(
@@ -181,8 +235,8 @@ class Drone:
         self.logger.info(f"Connected to aircraft of type {self.aircraft_type}")
 
         self.autopilot = initial_heartbeat.autopilot
-        self.target_system = self.master.target_system
-        self.target_component = self.master.target_component
+        self.target_system = initial_heartbeat.get_srcSystem()
+        self.target_component = initial_heartbeat.get_srcComponent()
 
         self.logger.debug(
             f"Heartbeat received (system {self.target_system} component {self.target_component})"
@@ -220,6 +274,12 @@ class Drone:
         self.startThread()
 
         self.addMessageListener("STATUSTEXT", sendMessage)
+
+        if self._isConnectionCancelRequested():
+            self._setCancelledConnectionErrorAndCloseMaster()
+            self.is_active.clear()
+            self.stopAllThreads()
+            return
 
         self.getAutopilotVersion()
 
@@ -261,6 +321,7 @@ class Drone:
         fetch_all_params_result = self.paramsController.fetchAllParamsBlocking(
             timeout_secs=120,
             progress_update_callback=self.sendParamFetchConnectionStatusUpdate,
+            should_cancel_callback=self._isConnectionCancelRequested,
         )
 
         if not fetch_all_params_result.get("success"):
@@ -282,6 +343,24 @@ class Drone:
         self.sendStatusTextMessage(
             mavutil.mavlink.MAV_SEVERITY_INFO, "FGCS connected to aircraft"
         )
+
+    def _isConnectionCancelRequested(self) -> bool:
+        return self.connection_cancel_event.is_set()
+
+    def requestConnectionCancel(self) -> None:
+        self.connection_cancel_event.set()
+        if getattr(self, "paramsController", None) is not None:
+            self.paramsController.is_requesting_params = False
+
+    def _setCancelledConnectionErrorAndCloseMaster(self) -> None:
+        self.logger.info("Connection cancelled by user")
+        self.connectionError = "Connection cancelled by user."
+        if getattr(self, "master", None) is not None:
+            try:
+                self.master.close()
+            except Exception:
+                self.logger.exception("Failed to close connection during cancellation")
+            self.master = None
 
     def __getNextLogFilePath(self, line: str) -> str:
         return line.split("==NEXT_FILE==")[-1].split("==END==")[0]
@@ -520,7 +599,13 @@ class Drone:
         Args:
             stream (int): The data stream to set up
         """
-        self.sendDataStreamRequestMessage(stream, DATASTREAM_RATES[stream])
+        rate = DATASTREAM_RATES.get(stream)
+        if rate is None:
+            self.logger.warning(
+                f"No configured rate for stream {stream}; skipping setup request"
+            )
+            return
+        self.sendDataStreamRequestMessage(stream, rate)
 
     @sendingCommandLock
     def sendDataStreamRequestMessage(self, stream: int, rate: int) -> None:
@@ -676,8 +761,6 @@ class Drone:
                 break
             except (serial.serialutil.SerialException, ConnectionAbortedError):
                 self.logger.error("Autopilot disconnected", exc_info=True)
-                if self.droneDisconnectCb:
-                    self.droneDisconnectCb()
                 self.close()
                 break
             except Exception as e:
@@ -888,9 +971,22 @@ class Drone:
 
     def sendHeartbeatMessage(self) -> None:
         """Sends a heartbeat message to the drone every second."""
+        heartbeat_interval_secs = 1.0
+        next_heartbeat_time = time.monotonic()
+
         while self.is_active.is_set():
+            now = time.monotonic()
+            sleep_time = next_heartbeat_time - now
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+
+            master = getattr(self, "master", None)
+            if master is None:
+                # Connection teardown can clear master while this thread is winding down.
+                break
+
             try:
-                self.master.mav.heartbeat_send(
+                master.mav.heartbeat_send(
                     mavutil.mavlink.MAV_TYPE_GCS,
                     mavutil.mavlink.MAV_AUTOPILOT_INVALID,
                     0,
@@ -899,7 +995,11 @@ class Drone:
                 )
             except Exception as e:
                 self.logger.error(f"Failed to send heartbeat: {e}", exc_info=True)
-            time.sleep(1)
+
+            # Keep a stable 1Hz cadence and recover if we fall behind.
+            next_heartbeat_time += heartbeat_interval_secs
+            if next_heartbeat_time < time.monotonic():
+                next_heartbeat_time = time.monotonic() + heartbeat_interval_secs
 
     def startThread(self) -> None:
         """Starts the listener and sender threads."""
@@ -1180,12 +1280,19 @@ class Drone:
         self.logger.info(f"Cleaning up resources for drone at {self}")
         self.clearAllMessageListeners()
 
+        if self.droneDisconnectCb:
+            self.droneDisconnectCb()
+
         self.is_active.clear()
 
-        self.stopAllDataStreams()
+        if getattr(self, "master", None) is not None:
+            self.stopAllDataStreams()
         self.stopForwarding()
         self.stopAllThreads()
-        self.master.close()
+
+        if getattr(self, "master", None) is not None:
+            self.master.close()
+            self.master = None
 
         if len(self.log_file_names) == 0:
             self.logger.debug("No logs to save")

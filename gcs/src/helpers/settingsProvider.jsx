@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState } from "react"
+import { createContext, useCallback, useEffect, useMemo, useState } from "react"
 
 import { getSettingFromSettings, setSettingInSettings } from "./settings"
 
@@ -42,30 +42,46 @@ export const SettingsProvider = ({ children }) => {
     return () => window.ipcRenderer.removeAllListeners("settings:open")
   }, [open])
 
-  const setSetting = (setting, value) => {
-    if (settings === null) return
+  const setSetting = useCallback(
+    (setting, value) => {
+      if (settings === null) return
 
-    const newSettings = {
-      version: settings.version,
-      settings: setSettingInSettings(setting, value, settings.settings),
-    }
+      const newSettings = {
+        version: settings.version,
+        settings: setSettingInSettings(setting, value, settings.settings),
+      }
 
-    setSettings(newSettings)
-    window.ipcRenderer.invoke("settings:save-settings", newSettings)
-  }
+      setSettings(newSettings)
+      window.ipcRenderer.invoke("settings:save-settings", newSettings)
+    },
+    [settings],
+  )
 
-  const getSetting = (setting) => {
-    const userSetting = getSettingFromSettings(setting, settings.settings)
+  const getSetting = useCallback(
+    (setting) => {
+      if (settings === null) return null
 
-    return userSetting === null
-      ? getSettingFromSettings(setting, DefaultSettings).default
-      : userSetting
-  }
+      const userSetting = getSettingFromSettings(setting, settings.settings)
+      const defaultSetting = getSettingFromSettings(setting, DefaultSettings)
+
+      if (userSetting !== null) return userSetting
+
+      if (defaultSetting === null || defaultSetting === undefined) {
+        return null
+      }
+
+      return defaultSetting.default
+    },
+    [settings],
+  )
+
+  const contextValue = useMemo(
+    () => ({ getSetting, setSetting, settings, opened, open, close }),
+    [getSetting, setSetting, settings, opened, open, close],
+  )
 
   return (
-    <SettingsContext.Provider
-      value={{ getSetting, setSetting, settings, opened, open, close }}
-    >
+    <SettingsContext.Provider value={contextValue}>
       {settings !== null ? children : <></>}
     </SettingsContext.Provider>
   )

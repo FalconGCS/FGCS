@@ -68,6 +68,7 @@ export default function GraphWindowApp() {
     // tell main we are ready *after* listeners exist
     if (!sentReadyRef.current) {
       window.ipcRenderer.send("app:graph-window:ready")
+      window.postMessage({ payload: "removeLoading" }, "*")
       sentReadyRef.current = true
     }
 

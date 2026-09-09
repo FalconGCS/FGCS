@@ -31,6 +31,11 @@ export default function AlertProvider({ children }) {
   function dismissAlert(category, manual) {
     setAlerts((prevAlerts) => {
       const alert = prevAlerts.find((a) => a.category === category)
+      if (!alert) return prevAlerts
+
+      if (manual && alert.dismissable === false) {
+        return prevAlerts
+      }
 
       if (manual) {
         dismissedAlerts.current.set(category, alert.severity)

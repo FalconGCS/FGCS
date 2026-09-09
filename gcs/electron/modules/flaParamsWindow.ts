@@ -10,6 +10,8 @@ let flaParamsWin: BrowserWindow | null = null
 export function openFlaParamsWindow(
   paramsData: ParamObject[] | null,
   fileName: string | null,
+  aircraftType: string | null,
+  firmwareVersion: string | null,
   parentWindow?: BrowserWindow,
 ) {
   if (flaParamsWin !== null) {
@@ -17,7 +19,7 @@ export function openFlaParamsWindow(
   }
 
   const windowOptions: Electron.BrowserWindowConstructorOptions = {
-    width: 800,
+    width: 1100,
     height: 1200,
     frame: true,
     icon: path.join(process.env.VITE_PUBLIC, "app_icon.ico"),
@@ -53,7 +55,9 @@ export function openFlaParamsWindow(
   flaParamsWin.on("close", () => {
     flaParamsWin = null
   })
+
   flaParamsWin.setMenuBarVisibility(false)
+  flaParamsWin.center()
   flaParamsWin.show()
 
   if (paramsData !== null) {
@@ -61,6 +65,8 @@ export function openFlaParamsWindow(
       flaParamsWin?.webContents.send("app:send-fla-params", {
         params: paramsData,
         fileName: fileName,
+        aircraftType,
+        firmwareVersion,
       })
     })
   }
@@ -81,7 +87,13 @@ export default function registerFlaParamsIPC() {
 
   ipcMain.handle("app:open-fla-params-window", (event, data) => {
     const parentWindow = BrowserWindow.fromWebContents(event.sender)
-    openFlaParamsWindow(data.params, data.fileName, parentWindow || undefined)
+    openFlaParamsWindow(
+      data.params,
+      data.fileName,
+      data.aircraftType ?? null,
+      data.firmwareVersion ?? null,
+      parentWindow || undefined,
+    )
   })
   ipcMain.handle("app:close-fla-params-window", () => closeFlaParamsWindow())
 }
