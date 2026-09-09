@@ -19,6 +19,7 @@ import {
 // Helper imports
 import { coordToInt, intToCoord } from "../../helpers/dataFormatters"
 import { filterMissionItems } from "../../helpers/filterMissions"
+import { getLoiterRadiusMeters } from "../../helpers/loiterCommands"
 import {
   BRANCH_END_COMMANDS,
   buildMissionPathSegments,
@@ -54,13 +55,6 @@ const RETURN_PATH_COLOURS = [
   tailwindColors.teal[300],
   tailwindColors.sky[400],
 ]
-
-const LOITER_RADIUS_PARAMS = {
-  17: "param3", // MAV_CMD_NAV_LOITER_UNLIM
-  18: "param3", // MAV_CMD_NAV_LOITER_TURNS
-  19: "param3", // MAV_CMD_NAV_LOITER_TIME
-  31: "param2", // MAV_CMD_NAV_LOITER_TO_ALT
-}
 
 function getMidpointCoordinates(startItem, endItem) {
   return midpoint(
@@ -191,12 +185,9 @@ export default function MissionItems({ missionItems }) {
 
   const loiterCircles = useMemo(() => {
     return displayedMissionItems
-      .filter((item) => item.command in LOITER_RADIUS_PARAMS)
       .map((item) => {
-        const radius = Math.abs(
-          Number(item[LOITER_RADIUS_PARAMS[item.command]]),
-        )
-        if (!Number.isFinite(radius) || radius === 0) return null
+        const radius = getLoiterRadiusMeters(item)
+        if (radius === null) return null
 
         return circle(missionItemToCoord(item), radius, {
           steps: 64,

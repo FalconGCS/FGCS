@@ -11,6 +11,7 @@ import {
   filterMissionItems,
   isGlobalFrameHomeCommand,
 } from "../../helpers/filterMissions"
+import { getLoiterDistanceMeters } from "../../helpers/loiterCommands"
 import { buildMissionWaypointLegMetrics } from "../../helpers/missionWaypointMetrics"
 
 // Redux
@@ -129,6 +130,9 @@ function calculateTotalDistance(missionItems, homePosition) {
     }
 
     if (item.x === 0 || item.y === 0) continue // Skip waypoints without coordinates
+
+    // Circling at a loiter is flown on top of the legs either side of it
+    totalDistance += getLoiterDistanceMeters(item)
 
     if (lastPoint) {
       totalDistance += distance(
