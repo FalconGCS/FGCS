@@ -66,6 +66,7 @@ const missionInfoSlice = createSlice({
     // Altitude given to new mission waypoints, persisted to localStorage by
     // the store so it survives a restart.
     defaultWaypointAltitude: DEFAULT_WAYPOINT_ALTITUDE,
+    hoveredMissionItemSeq: null,
     contextMenu: {
       isOpen: false,
       position: { x: 0, y: 0 },
@@ -454,6 +455,10 @@ const missionInfoSlice = createSlice({
       if (action.payload === state.activeTab) return
       state.activeTab = action.payload
     },
+    setHoveredMissionItemSeq: (state, action) => {
+      if (action.payload === state.hoveredMissionItemSeq) return
+      state.hoveredMissionItemSeq = action.payload
+    },
     setMissionProgressData: (state, action) => {
       if (action.payload === state.missionProgressData) return
       state.missionProgressData = action.payload
@@ -591,6 +596,7 @@ const missionInfoSlice = createSlice({
     selectMissionProgressModal: (state) => state.modals.missionProgressModal,
     selectMissionProgressData: (state) => state.missionProgressData,
     selectActiveTab: (state) => state.activeTab,
+    selectHoveredMissionItemSeq: (state) => state.hoveredMissionItemSeq,
     selectDefaultWaypointAltitude: (state) => state.defaultWaypointAltitude,
     selectContextMenu: (state) => state.contextMenu,
     selectMissionDistanceMeasurements: (state) =>
@@ -749,6 +755,7 @@ export const {
   selectMissionProgressModal,
   selectMissionProgressData,
   selectActiveTab,
+  selectHoveredMissionItemSeq,
   selectDefaultWaypointAltitude,
   selectContextMenu,
   selectMissionDistanceMeasurements,
@@ -782,6 +789,7 @@ export const {
   setUnwrittenChanges,
   setMissionProgressModal,
   setActiveTab,
+  setHoveredMissionItemSeq,
   setMissionProgressData,
   resetMissionProgressData,
   updateContextMenuState,

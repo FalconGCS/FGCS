@@ -11,7 +11,9 @@ import { selectHomePosition } from "../../redux/slices/droneInfoSlice"
 import {
   insertDrawingItemAfter,
   selectActiveTab,
+  selectHoveredMissionItemSeq,
   selectPlannedHomePosition,
+  setHoveredMissionItemSeq,
 } from "../../redux/slices/missionSlice"
 
 // Helper imports
@@ -131,6 +133,7 @@ export default function MissionItems({ missionItems }) {
     useSelector(selectActiveTab) === "mission" && currentPage === "missions"
   const plannedHomePosition = useSelector(selectPlannedHomePosition)
   const currentHomePosition = useSelector(selectHomePosition)
+  const hoveredMissionItemSeq = useSelector(selectHoveredMissionItemSeq)
   const homePosition =
     currentPage === "missions" ? plannedHomePosition : currentHomePosition
 
@@ -271,6 +274,10 @@ export default function MissionItems({ missionItems }) {
             text={`${item.seq}`}
             tooltipText={item.z ? `Alt: ${item.z}` : null}
             draggable={editable}
+            highlighted={hoveredMissionItemSeq === item.seq}
+            onHoverChange={(isHovered) =>
+              dispatch(setHoveredMissionItemSeq(isHovered ? item.seq : null))
+            }
           />
         )
       })}

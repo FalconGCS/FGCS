@@ -25,6 +25,8 @@ import {
   removeDrawingItem,
   reorderDrawingItem,
   selectDrawingMissionItemByIdx,
+  selectHoveredMissionItemSeq,
+  setHoveredMissionItemSeq,
   updateDrawingItem,
 } from "../../redux/slices/missionSlice"
 
@@ -63,6 +65,8 @@ export default function MissionItemsTableRow({ missionItemIndex, rowMetrics }) {
   const missionItem = useSelector(
     selectDrawingMissionItemByIdx(missionItemIndex),
   )
+  const hoveredMissionItemSeq = useSelector(selectHoveredMissionItemSeq)
+  const isHovered = hoveredMissionItemSeq === missionItem.seq
 
   // Commonly used section
   const commonlyUsedTag = "-com-used"
@@ -117,7 +121,11 @@ export default function MissionItemsTableRow({ missionItemIndex, rowMetrics }) {
   }
 
   return (
-    <TableTr>
+    <TableTr
+      onMouseEnter={() => dispatch(setHoveredMissionItemSeq(missionItem.seq))}
+      onMouseLeave={() => dispatch(setHoveredMissionItemSeq(null))}
+      className={isHovered ? "!bg-falcongrey-600" : undefined}
+    >
       <TableTd>{missionItem.seq}</TableTd>
       <TableTd>
         <Select
