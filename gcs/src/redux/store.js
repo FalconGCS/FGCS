@@ -24,6 +24,7 @@ import droneConnectionSlice, {
   setStatusTextSize,
 } from "./slices/droneConnectionSlice"
 import droneInfoSlice, {
+  setDroneAircraftType,
   setGraphValues,
   setSelectedDisplayTelemetry,
 } from "./slices/droneInfoSlice"
@@ -238,6 +239,11 @@ if (acceptanceRadius !== null) {
   if (Number.isFinite(parsedAcceptanceRadius)) {
     store.dispatch(setAcceptanceRadius(parsedAcceptanceRadius))
   }
+}
+
+const aircraftType = localStorage.getItem("aircraftType")
+if (aircraftType === "1" || aircraftType === "2") {
+  store.dispatch(setDroneAircraftType(Number(aircraftType)))
 }
 
 const persistentColorMap = localStorage.getItem("flaPersistentColorMap")
@@ -456,6 +462,17 @@ store.subscribe(() => {
     updateLocalStorageIfChanged(
       "acceptanceRadius",
       store_mut.missionInfo.acceptanceRadius,
+    )
+  }
+
+  // Store the aircraft type so it can be restored as the default on next launch
+  if (
+    store_mut.droneInfo.aircraftType === 1 ||
+    store_mut.droneInfo.aircraftType === 2
+  ) {
+    updateLocalStorageIfChanged(
+      "aircraftType",
+      store_mut.droneInfo.aircraftType,
     )
   }
 
