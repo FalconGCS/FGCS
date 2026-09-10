@@ -56,6 +56,8 @@ import {
 } from "../slices/ftpSlice"
 import {
   emitControlMission,
+  emitGetWaypointRadius,
+  emitSetWaypointRadius,
   emitExportMissionToFile,
   emitGetCurrentMission,
   emitGetTargetInfo,
@@ -329,6 +331,18 @@ export function handleEmitters(socket, store, action) {
         socket.socket.emit("control_mission", {
           action: controlAction,
           ...(controlAction === "set_current" && { seq: action.payload.seq }),
+        })
+      },
+    },
+    {
+      emitter: emitGetWaypointRadius,
+      callback: () => socket.socket.emit("get_waypoint_radius"),
+    },
+    {
+      emitter: emitSetWaypointRadius,
+      callback: () => {
+        socket.socket.emit("set_waypoint_radius", {
+          radius: action.payload,
         })
       },
     },

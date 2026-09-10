@@ -6,7 +6,7 @@ from threading import current_thread
 from typing import TYPE_CHECKING, Any, Callable, List, Optional
 
 import serial
-from app.customTypes import Number, Response
+from app.customTypes import Number, Response, VehicleType
 from app.utils import commandAccepted, sendingCommandLock
 from pymavlink import mavutil, mavwp
 
@@ -17,6 +17,11 @@ TYPE_MISSION = mavutil.mavlink.MAV_MISSION_TYPE_MISSION
 TYPE_FENCE = mavutil.mavlink.MAV_MISSION_TYPE_FENCE
 TYPE_RALLY = mavutil.mavlink.MAV_MISSION_TYPE_RALLY
 MISSION_TYPES = [TYPE_MISSION, TYPE_FENCE, TYPE_RALLY]
+
+WAYPOINT_RADIUS_PARAM_PLANE = ("WP_RADIUS", 1.0)
+WAYPOINT_RADIUS_PARAM_COPTER = ("WPNAV_RADIUS", 0.01)
+WAYPOINT_RADIUS_PARAM_COPTER_4_7 = ("WP_RADIUS_M", 1.0)
+COPTER_METRIC_WAYPOINT_RADIUS_VERSION = (4, 7)
 
 logger = getLogger("fgcs")
 
@@ -779,6 +784,79 @@ class MissionController:
             }
         finally:
             self.drone.release_message_type("COMMAND_ACK", self.controller_id)
+
+    def _waypointRadiusParam(self) -> tuple[str, float]:
+        """
+        The parameter holding the waypoint acceptance radius for this aircraft, and
+        the factor converting its value to metres.
+
+        Plane has always used WP_RADIUS in metres. Copter used WPNAV_RADIUS in
+        centimetres until 4.7, which renamed it to WP_RADIUS_M and moved it to metres.
+        """
+        if self.drone.aircraft_type == VehicleType.FIXED_WING.value:
+            return WAYPOINT_RADIUS_PARAM_PLANE
+
+        version = self.drone.flight_sw_version
+        if version is not None and version[:2] >= COPTER_METRIC_WAYPOINT_RADIUS_VERSION:
+            return WAYPOINT_RADIUS_PARAM_COPTER_4_7
+
+        return WAYPOINT_RADIUS_PARAM_COPTER
+
+    def getWaypointRadius(self) -> Response:
+        """
+        Get the waypoint acceptance radius in metres, from the cached parameters.
+        """
+        param_id, scale_to_metres = self._waypointRadiusParam()
+        param = self.drone.paramsController.getSingleParam(param_id)
+
+        if param.get("param_value") is None:
+            self.drone.logger.warning(f"{param_id} not found in cached params")
+            return {
+                "success": False,
+                "message": f"Waypoint radius parameter {param_id} not found in cache",
+            }
+
+        return {
+            "success": True,
+            "data": {
+                "radius": param["param_value"] * scale_to_metres,
+                "param_id": param_id,
+            },
+        }
+
+    def setWaypointRadius(self, radius: float) -> Response:
+        """
+        Set the waypoint acceptance radius.
+        """
+        param_id, scale_to_metres = self._waypointRadiusParam()
+        param = self.drone.paramsController.getSingleParam(param_id)
+
+        param_type = param.get("param_type")
+        if param_type is None:
+            self.drone.logger.warning(f"{param_id} not found in cached params")
+            return {
+                "success": False,
+                "message": f"Waypoint radius parameter {param_id} not found in cache",
+            }
+
+        param_value = radius / scale_to_metres
+
+        if self.drone.paramsController.setParam(param_id, param_value, param_type):
+            self.drone.logger.info(f"Waypoint radius set to {radius}m ({param_id})")
+            return {
+                "success": True,
+                "message": f"Waypoint radius set to {radius}m",
+                "data": {
+                    "param_id": param_id,
+                    "param_value": param_value,
+                    "param_type": param_type,
+                },
+            }
+
+        return {
+            "success": False,
+            "message": f"Failed to set waypoint radius to {radius}m",
+        }
 
     @sendingCommandLock
     def setCurrentMissionItem(self, item_number: int) -> Response:

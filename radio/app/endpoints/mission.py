@@ -38,6 +38,10 @@ class ControlMissionType(TypedDict):
     seq: NotRequired[int]
 
 
+class WaypointRadiusDataType(TypedDict):
+    radius: float
+
+
 def progressUpdateCallback(message: str, progress: float) -> None:
     """
     Callback that is used to update the frontend with the current mission function progress.
@@ -322,3 +326,58 @@ def controlMission(data: ControlMissionType) -> None:
         result = droneStatus.drone.missionController.setCurrentMissionItem(seq)
 
     socketio.emit("mission_control_result", result)
+
+
+@socketio.on("get_waypoint_radius")
+def getWaypointRadius() -> None:
+    """
+    Gets the waypoint acceptance radius in metres, only works if the missions screen
+    is loaded.
+    """
+    if droneStatus.state != "missions":
+        socketio.emit(
+            "params_error",
+            {
+                "message": "You must be on the missions screen to get the waypoint radius."
+            },
+        )
+        logger.debug(f"Current state: {droneStatus.state}")
+        return
+
+    if not droneStatus.drone:
+        return notConnectedError(action="get waypoint radius")
+
+    result = droneStatus.drone.missionController.getWaypointRadius()
+
+    socketio.emit("waypoint_radius_result", result)
+
+
+@socketio.on("set_waypoint_radius")
+def setWaypointRadius(data: WaypointRadiusDataType) -> None:
+    """
+    Sets the waypoint acceptance radius, only works if the missions screen is loaded.
+    """
+    if droneStatus.state != "missions":
+        socketio.emit(
+            "params_error",
+            {
+                "message": "You must be on the missions screen to set the waypoint radius."
+            },
+        )
+        logger.debug(f"Current state: {droneStatus.state}")
+        return
+
+    if not droneStatus.drone:
+        return notConnectedError(action="set waypoint radius")
+
+    radius = data.get("radius", None)
+    if radius is None or radius <= 0:
+        socketio.emit(
+            "params_error",
+            {"message": f"Waypoint radius must be a positive number, got {radius}."},
+        )
+        return
+
+    result = droneStatus.drone.missionController.setWaypointRadius(radius)
+
+    socketio.emit("set_waypoint_radius_result", result)

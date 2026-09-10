@@ -6,17 +6,23 @@
 */
 import { useMemo } from "react"
 import { useDispatch, useSelector } from "react-redux"
-import { selectCurrentPage } from "../../redux/slices/droneConnectionSlice"
+import {
+  selectConnectedToDrone,
+  selectCurrentPage,
+} from "../../redux/slices/droneConnectionSlice"
 import { selectHomePosition } from "../../redux/slices/droneInfoSlice"
 import {
   insertDrawingItemAfter,
+  selectAcceptanceRadius,
   selectActiveTab,
   selectHoveredMissionItemSeq,
   selectPlannedHomePosition,
+  selectVehicleWaypointRadius,
   setHoveredMissionItemSeq,
 } from "../../redux/slices/missionSlice"
 
 // Helper imports
+import { getAcceptanceRadiusMeters } from "../../helpers/acceptanceRadius"
 import { coordToInt, intToCoord } from "../../helpers/dataFormatters"
 import { filterMissionItems } from "../../helpers/filterMissions"
 import { getLoiterRadiusMeters } from "../../helpers/loiterCommands"
@@ -128,6 +134,9 @@ export default function MissionItems({ missionItems }) {
   const plannedHomePosition = useSelector(selectPlannedHomePosition)
   const currentHomePosition = useSelector(selectHomePosition)
   const hoveredMissionItemSeq = useSelector(selectHoveredMissionItemSeq)
+  const connectedToDrone = useSelector(selectConnectedToDrone)
+  const acceptanceRadius = useSelector(selectAcceptanceRadius)
+  const vehicleWaypointRadius = useSelector(selectVehicleWaypointRadius)
   const homePosition =
     currentPage === "missions" ? plannedHomePosition : currentHomePosition
 
@@ -183,6 +192,26 @@ export default function MissionItems({ missionItems }) {
       [missionItems, filteredMissionItems, homePosition, takeoffWaypoint],
     )
 
+  // A connected aircraft's own parameter wins over the manually set radius
+  const acceptanceRadiusDefault =
+    connectedToDrone && vehicleWaypointRadius !== null
+      ? vehicleWaypointRadius.radius
+      : acceptanceRadius
+
+  const acceptanceCircles = useMemo(() => {
+    return displayedMissionItems
+      .map((item) => {
+        const radius = getAcceptanceRadiusMeters(item, acceptanceRadiusDefault)
+        if (radius === null) return null
+
+        return circle(missionItemToCoord(item), radius, {
+          steps: 64,
+          units: "meters",
+        })
+      })
+      .filter(Boolean)
+  }, [displayedMissionItems, acceptanceRadiusDefault])
+
   const loiterCircles = useMemo(() => {
     return displayedMissionItems
       .map((item) => {
@@ -233,6 +262,25 @@ export default function MissionItems({ missionItems }) {
 
   return (
     <>
+      <Source
+        id="acceptance-radius-source"
+        type="geojson"
+        data={{
+          type: "FeatureCollection",
+          features: acceptanceCircles,
+        }}
+      >
+        <Layer
+          id="acceptance-radius-layer"
+          type="line"
+          paint={{
+            "line-color": tailwindColors.sky[300],
+            "line-width": 1,
+            "line-opacity": 0.8,
+          }}
+        />
+      </Source>
+
       <Source
         id="loiter-radius-source"
         type="geojson"

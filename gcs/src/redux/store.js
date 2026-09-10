@@ -33,6 +33,7 @@ import logAnalyserSlice, {
   setPersistentColorMap,
 } from "./slices/logAnalyserSlice"
 import missionInfoSlice, {
+  setAcceptanceRadius,
   setDefaultWaypointAltitude,
   setPlannedHomePosition,
 } from "./slices/missionSlice"
@@ -228,6 +229,14 @@ if (defaultWaypointAltitude !== null) {
   const parsedDefaultWaypointAltitude = Number(defaultWaypointAltitude)
   if (Number.isFinite(parsedDefaultWaypointAltitude)) {
     store.dispatch(setDefaultWaypointAltitude(parsedDefaultWaypointAltitude))
+  }
+}
+
+const acceptanceRadius = localStorage.getItem("acceptanceRadius")
+if (acceptanceRadius !== null) {
+  const parsedAcceptanceRadius = Number(acceptanceRadius)
+  if (Number.isFinite(parsedAcceptanceRadius)) {
+    store.dispatch(setAcceptanceRadius(parsedAcceptanceRadius))
   }
 }
 
@@ -439,6 +448,14 @@ store.subscribe(() => {
     updateLocalStorageIfChanged(
       "defaultWaypointAltitude",
       store_mut.missionInfo.defaultWaypointAltitude,
+    )
+  }
+
+  // Store the acceptance radius used to draw waypoint circles when disconnected
+  if (typeof store_mut.missionInfo.acceptanceRadius === "number") {
+    updateLocalStorageIfChanged(
+      "acceptanceRadius",
+      store_mut.missionInfo.acceptanceRadius,
     )
   }
 

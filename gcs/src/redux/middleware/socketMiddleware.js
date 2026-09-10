@@ -113,6 +113,7 @@ import {
   addIdToItem,
   closeDashboardMissionFetchingNotificationNoSuccessThunk,
   closeDashboardMissionFetchingNotificationThunk,
+  emitGetWaypointRadius,
   setCurrentMission,
   setCurrentMissionItems,
   setDrawingFenceItems,
@@ -126,6 +127,7 @@ import {
   setUnwrittenChanges,
   setUpdatePlannedHomePositionFromLoadData,
   setUpdatePlannedHomePositionFromLoadModal,
+  setVehicleWaypointRadius,
 } from "../slices/missionSlice"
 import {
   emitRefreshParams,
@@ -192,6 +194,8 @@ const MissionSpecificSocketEvents = Object.freeze({
   onCurrentMission: "current_mission",
   onTargetInfo: "target_info",
   onCurrentMissionProgress: "current_mission_progress",
+  onWaypointRadiusResult: "waypoint_radius_result",
+  onSetWaypointRadiusResult: "set_waypoint_radius_result",
 })
 
 const ConfigSpecificSocketEvents = Object.freeze({
@@ -1219,6 +1223,35 @@ const socketMiddleware = (store) => {
             msg.success
               ? showSuccessNotification(msg.message)
               : showErrorNotification(msg.message)
+          },
+        )
+
+        socket.socket.on(
+          MissionSpecificSocketEvents.onWaypointRadiusResult,
+          (msg) => {
+            store.dispatch(
+              setVehicleWaypointRadius(
+                msg.success
+                  ? { radius: msg.data.radius, paramId: msg.data.param_id }
+                  : null,
+              ),
+            )
+          },
+        )
+
+        socket.socket.on(
+          MissionSpecificSocketEvents.onSetWaypointRadiusResult,
+          (msg) => {
+            if (msg.success) {
+              showSuccessNotification(msg.message)
+              store.dispatch(emitGetWaypointRadius())
+
+              if (msg.data) {
+                store.dispatch(updateParamValue(msg.data))
+              }
+            } else {
+              showErrorNotification(msg.message)
+            }
           },
         )
 
