@@ -164,6 +164,13 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Output "Generated log message descriptions"
 
+python generate_mav_cmd_param_metadata.py
+if ($LASTEXITCODE -ne 0) {
+  Write-Error "Failed to generate MAV_CMD param metadata"
+  exit $LASTEXITCODE
+}
+Write-Output "Generated MAV_CMD param metadata"
+
 Set-Location ../
 yarn
 yarn version --new-version $Version --no-git-tag-version --no-commit-hooks

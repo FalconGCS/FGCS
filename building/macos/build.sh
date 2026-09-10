@@ -76,6 +76,8 @@ python3 generate_param_definitions.py
 echo "Generated param definitions"
 python3 generate_log_message_descriptions.py
 echo "Generated log message descriptions"
+python3 generate_mav_cmd_param_metadata.py
+echo "Generated MAV_CMD param metadata"
 
 cd ../
 yarn

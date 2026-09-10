@@ -45,6 +45,9 @@ gen_apm_params_versions.json
 gen_log_messages_desc_copter.json
 gen_log_messages_desc_plane.json
 
+# Generated MAVLink command metadata
+gen_mav_cmd_param_meta.json
+
 # Yarn-related files to ignore
 .yarn/
 .yarnrc.yml

@@ -26,7 +26,9 @@ import {
   reorderDrawingItem,
   selectDrawingMissionItemByIdx,
   selectHoveredMissionItemSeq,
+  selectSelectedMissionItemId,
   setHoveredMissionItemSeq,
+  setSelectedMissionItemId,
   updateDrawingItem,
 } from "../../redux/slices/missionSlice"
 
@@ -67,6 +69,8 @@ export default function MissionItemsTableRow({ missionItemIndex, rowMetrics }) {
   )
   const hoveredMissionItemSeq = useSelector(selectHoveredMissionItemSeq)
   const isHovered = hoveredMissionItemSeq === missionItem.seq
+  const selectedMissionItemId = useSelector(selectSelectedMissionItemId)
+  const isSelected = selectedMissionItemId === missionItem.id
 
   // Commonly used section
   const commonlyUsedTag = "-com-used"
@@ -124,7 +128,15 @@ export default function MissionItemsTableRow({ missionItemIndex, rowMetrics }) {
     <TableTr
       onMouseEnter={() => dispatch(setHoveredMissionItemSeq(missionItem.seq))}
       onMouseLeave={() => dispatch(setHoveredMissionItemSeq(null))}
-      className={isHovered ? "!bg-falcongrey-600" : undefined}
+      onClick={() => dispatch(setSelectedMissionItemId(missionItem.id))}
+      onFocus={() => dispatch(setSelectedMissionItemId(missionItem.id))}
+      className={
+        isHovered
+          ? "!bg-falcongrey-600"
+          : isSelected
+            ? "!bg-falcongrey-700"
+            : undefined
+      }
     >
       <TableTd>{missionItem.seq}</TableTd>
       <TableTd>
@@ -152,49 +164,19 @@ export default function MissionItemsTableRow({ missionItemIndex, rowMetrics }) {
           searchable
         />
       </TableTd>
-      <TableTd>
-        <NumberInput
-          value={missionItem.param1}
-          onChange={(val) => {
-            const numericValue = parseNumericInput(val)
-            if (numericValue === null) return
-            updateMissionItemData("param1", numericValue)
-          }}
-          hideControls
-        />
-      </TableTd>
-      <TableTd>
-        <NumberInput
-          value={missionItem.param2}
-          onChange={(val) => {
-            const numericValue = parseNumericInput(val)
-            if (numericValue === null) return
-            updateMissionItemData("param2", numericValue)
-          }}
-          hideControls
-        />
-      </TableTd>
-      <TableTd>
-        <NumberInput
-          value={missionItem.param3}
-          onChange={(val) => {
-            const numericValue = parseNumericInput(val)
-            if (numericValue === null) return
-            updateMissionItemData("param3", numericValue)
-          }}
-          hideControls
-        />
-      </TableTd>
-      <TableTd>
-        <NumberInput
-          value={missionItem.param4}
-          onChange={(val) => {
-            const numericValue = parseNumericInput(val)
-            updateMissionItemData("param4", numericValue)
-          }}
-          hideControls
-        />
-      </TableTd>
+      {[1, 2, 3, 4].map((paramIndex) => (
+        <TableTd key={paramIndex}>
+          <NumberInput
+            value={missionItem[`param${paramIndex}`]}
+            onChange={(val) => {
+              const numericValue = parseNumericInput(val)
+              if (numericValue === null) return
+              updateMissionItemData(`param${paramIndex}`, numericValue)
+            }}
+            hideControls
+          />
+        </TableTd>
+      ))}
       <TableTd>
         <NumberInput
           value={intToCoord(missionItem.x).toFixed(coordsFractionDigits)}

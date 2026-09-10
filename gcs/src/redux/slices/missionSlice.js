@@ -75,6 +75,7 @@ const missionInfoSlice = createSlice({
     // or null when unknown. Live vehicle state, so deliberately not persisted.
     vehicleWaypointRadius: null,
     hoveredMissionItemSeq: null,
+    selectedMissionItemId: null,
     contextMenu: {
       isOpen: false,
       position: { x: 0, y: 0 },
@@ -475,6 +476,10 @@ const missionInfoSlice = createSlice({
       if (action.payload === state.hoveredMissionItemSeq) return
       state.hoveredMissionItemSeq = action.payload
     },
+    setSelectedMissionItemId: (state, action) => {
+      if (action.payload === state.selectedMissionItemId) return
+      state.selectedMissionItemId = action.payload
+    },
     setMissionProgressData: (state, action) => {
       if (action.payload === state.missionProgressData) return
       state.missionProgressData = action.payload
@@ -615,6 +620,7 @@ const missionInfoSlice = createSlice({
     selectMissionProgressData: (state) => state.missionProgressData,
     selectActiveTab: (state) => state.activeTab,
     selectHoveredMissionItemSeq: (state) => state.hoveredMissionItemSeq,
+    selectSelectedMissionItemId: (state) => state.selectedMissionItemId,
     selectDefaultWaypointAltitude: (state) => state.defaultWaypointAltitude,
     selectAcceptanceRadius: (state) => state.acceptanceRadius,
     selectVehicleWaypointRadius: (state) => state.vehicleWaypointRadius,
@@ -776,6 +782,7 @@ export const {
   selectMissionProgressData,
   selectActiveTab,
   selectHoveredMissionItemSeq,
+  selectSelectedMissionItemId,
   selectDefaultWaypointAltitude,
   selectAcceptanceRadius,
   selectVehicleWaypointRadius,
@@ -814,6 +821,7 @@ export const {
   setMissionProgressModal,
   setActiveTab,
   setHoveredMissionItemSeq,
+  setSelectedMissionItemId,
   setMissionProgressData,
   resetMissionProgressData,
   updateContextMenuState,
