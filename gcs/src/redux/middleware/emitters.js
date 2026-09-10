@@ -56,12 +56,12 @@ import {
 } from "../slices/ftpSlice"
 import {
   emitControlMission,
-  emitGetWaypointRadius,
-  emitSetWaypointRadius,
   emitExportMissionToFile,
   emitGetCurrentMission,
   emitGetTargetInfo,
+  emitGetWaypointRadius,
   emitImportMissionFromFile,
+  emitSetWaypointRadius,
   emitWriteCurrentMission,
   setIsFetchingDashboardMission,
   setShouldFetchAllMissionsOnDashboard,
@@ -324,9 +324,10 @@ export function handleEmitters(socket, store, action) {
       callback: () => {
         const controlAction = action.payload.action
         if (!["start", "restart", "set_current"].includes(controlAction))
-          return console.error(
-            `Invalid control mission action, got ${controlAction}`,
-          )
+          if (!["start", "restart", "set_current"].includes(controlAction))
+            return console.error(
+              `Invalid control mission action, got ${controlAction}`,
+            )
 
         socket.socket.emit("control_mission", {
           action: controlAction,
