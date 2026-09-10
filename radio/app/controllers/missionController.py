@@ -915,62 +915,6 @@ class MissionController:
             self.drone.release_message_type("COMMAND_ACK", self.controller_id)
 
     @sendingCommandLock
-    def setCurrentMissionItem(self, item_number: int) -> Response:
-        """
-        Sets the current mission item on the drone, directing the aircraft to it.
-        """
-        if not isinstance(item_number, int) or isinstance(item_number, bool):
-            return {
-                "success": False,
-                "message": f"Mission item number must be an integer, got {item_number}",
-            }
-
-        if item_number < 0:
-            return {
-                "success": False,
-                "message": f"Mission item number must not be negative, got {item_number}",
-            }
-
-        if not self.drone.reserve_message_type("COMMAND_ACK", self.controller_id):
-            return {
-                "success": False,
-                "message": "Could not reserve COMMAND_ACK messages",
-            }
-
-        try:
-            self.drone.sendCommand(
-                mavutil.mavlink.MAV_CMD_DO_SET_MISSION_CURRENT, param1=item_number
-            )
-
-            response = self.drone.wait_for_message(
-                "COMMAND_ACK",
-                self.controller_id,
-                condition_func=lambda msg: (
-                    msg.command == mavutil.mavlink.MAV_CMD_DO_SET_MISSION_CURRENT
-                ),
-            )
-
-            if commandAccepted(
-                response, mavutil.mavlink.MAV_CMD_DO_SET_MISSION_CURRENT
-            ):
-                return {
-                    "success": True,
-                    "message": f"Set current mission item to {item_number}",
-                }
-            else:
-                return {
-                    "success": False,
-                    "message": f"Failed to set current mission item to {item_number}",
-                }
-        except serial.serialutil.SerialException:
-            return {
-                "success": False,
-                "message": "Failed to set current mission item, serial exception",
-            }
-        finally:
-            self.drone.release_message_type("COMMAND_ACK", self.controller_id)
-
-    @sendingCommandLock
     def clearMission(self, mission_type: int) -> Response:
         """
         Clears the specified mission type from the drone.
