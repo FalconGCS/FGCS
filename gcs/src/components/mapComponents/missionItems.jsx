@@ -198,7 +198,11 @@ export default function MissionItems({ missionItems }) {
       ? vehicleWaypointRadius.radius
       : acceptanceRadius
 
+  const showAcceptanceRadius = currentPage === "missions"
+
   const acceptanceCircles = useMemo(() => {
+    if (!showAcceptanceRadius) return []
+
     return displayedMissionItems
       .map((item) => {
         const radius = getAcceptanceRadiusMeters(item, acceptanceRadiusDefault)
@@ -210,7 +214,7 @@ export default function MissionItems({ missionItems }) {
         })
       })
       .filter(Boolean)
-  }, [displayedMissionItems, acceptanceRadiusDefault])
+  }, [showAcceptanceRadius, displayedMissionItems, acceptanceRadiusDefault])
 
   const loiterCircles = useMemo(() => {
     return displayedMissionItems
