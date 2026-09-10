@@ -1,9 +1,12 @@
 import { combineSlices, configureStore } from "@reduxjs/toolkit"
-import { defaultDataMessages } from "../helpers/dashboardDefaultDataMessages"
 import {
   KML_PRESENTATION_STORAGE_KEY,
   toKmlPresentationConfig,
 } from "../helpers/kml"
+import {
+  readSettingsSync,
+  writeSettingSync,
+} from "../helpers/persistedSettings"
 import armedMiddleware from "./middleware/armedMiddleware"
 import heartbeatMonitorMiddleware from "./middleware/heartbeatMonitorMiddleware"
 import socketMiddleware from "./middleware/socketMiddleware"
@@ -180,28 +183,61 @@ if (selectedRealtimeGraphs !== null) {
   }
 }
 
-const selectedDisplayTelemetry = localStorage.getItem(
-  "selectedDisplayTelemetry",
-)
-if (selectedDisplayTelemetry !== null) {
+const SELECTED_DISPLAY_TELEMETRY_SETTING = "selectedDisplayTelemetry"
+const { readable: settingsReadable, settings: persistedSettings } =
+  readSettingsSync()
+
+const canPersistSelectedDisplayTelemetry = settingsReadable
+if (!settingsReadable) {
+  console.log(
+    "Could not read the settings file, the displayed telemetry will not be saved this session",
+  )
+}
+
+function hydrateSelectedDisplayTelemetry() {
+  const savedConfig = persistedSettings[SELECTED_DISPLAY_TELEMETRY_SETTING]
+  if (Array.isArray(savedConfig) && savedConfig.length > 0) {
+    store.dispatch(
+      setSelectedDisplayTelemetry(
+        mergeSelectedDisplayTelemetryConfigWithDefaults(savedConfig),
+      ),
+    )
+    return
+  }
+
+  const legacyConfig = localStorage.getItem(SELECTED_DISPLAY_TELEMETRY_SETTING)
+  if (legacyConfig === null) return
+
+  let parsedLegacyConfig
   try {
-    const parsedSelectedDisplayTelemetry = JSON.parse(selectedDisplayTelemetry)
-    if (
-      Array.isArray(parsedSelectedDisplayTelemetry) &&
-      parsedSelectedDisplayTelemetry.length > 0
-    ) {
-      store.dispatch(
-        setSelectedDisplayTelemetry(
-          mergeSelectedDisplayTelemetryConfigWithDefaults(
-            parsedSelectedDisplayTelemetry,
-          ),
-        ),
-      )
-    }
+    parsedLegacyConfig = JSON.parse(legacyConfig)
   } catch {
-    store.dispatch(setSelectedDisplayTelemetry([...defaultDataMessages]))
+    console.log(
+      "Failed to parse selectedDisplayTelemetry from local storage, keeping the defaults",
+    )
+    return
+  }
+
+  if (!Array.isArray(parsedLegacyConfig) || parsedLegacyConfig.length === 0) {
+    console.log(
+      "Ignoring the selectedDisplayTelemetry in local storage as it holds no boxes",
+    )
+    return
+  }
+
+  const mergedConfig =
+    mergeSelectedDisplayTelemetryConfigWithDefaults(parsedLegacyConfig)
+  store.dispatch(setSelectedDisplayTelemetry(mergedConfig))
+
+  if (canPersistSelectedDisplayTelemetry) {
+    writeSettingSync(
+      SELECTED_DISPLAY_TELEMETRY_SETTING,
+      toSelectedDisplayTelemetryPersistedConfig(mergedConfig),
+    )
   }
 }
+
+hydrateSelectedDisplayTelemetry()
 
 const plannedHomePosition = localStorage.getItem("plannedHomePosition")
 if (plannedHomePosition !== null) {
@@ -334,6 +370,11 @@ function mergeSelectedDisplayTelemetryConfigWithDefaults(persistedConfig) {
 
 let prevPersistentColorMap = store.getState().logAnalyser.persistentColorMap
 let prevKmlLayers = store.getState().kml.layers
+let prevSelectedDisplayTelemetryJson = JSON.stringify(
+  toSelectedDisplayTelemetryPersistedConfig(
+    store.getState().droneInfo.selectedDisplayTelemetry,
+  ),
+)
 
 // Update states when a new message comes in
 store.subscribe(() => {
@@ -413,15 +454,25 @@ store.subscribe(() => {
   }
 
   if (
+    canPersistSelectedDisplayTelemetry &&
     Array.isArray(store_mut.droneInfo.selectedDisplayTelemetry) &&
     store_mut.droneInfo.selectedDisplayTelemetry.length > 0
   ) {
-    updateJSONLocalStorageIfChanged(
-      "selectedDisplayTelemetry",
+    const selectedDisplayTelemetryConfig =
       toSelectedDisplayTelemetryPersistedConfig(
         store_mut.droneInfo.selectedDisplayTelemetry,
-      ),
+      )
+    const selectedDisplayTelemetryJson = JSON.stringify(
+      selectedDisplayTelemetryConfig,
     )
+
+    if (selectedDisplayTelemetryJson !== prevSelectedDisplayTelemetryJson) {
+      prevSelectedDisplayTelemetryJson = selectedDisplayTelemetryJson
+      writeSettingSync(
+        SELECTED_DISPLAY_TELEMETRY_SETTING,
+        selectedDisplayTelemetryConfig,
+      )
+    }
   }
 
   if (typeof store_mut.droneConnection.connected === "boolean") {

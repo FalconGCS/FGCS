@@ -199,6 +199,26 @@ interface Settings {
 
 let userSettings: Settings | null = null
 
+const STORE_OWNED_SETTING_KEYS = ["selectedDisplayTelemetry"]
+
+// Merge incoming settings with store-owned settings
+function withStoreOwnedSettings(incoming: Settings): Settings {
+  if (userSettings === null) return incoming
+
+  const storeOwned: Record<string, unknown> = {}
+  for (const key of STORE_OWNED_SETTING_KEYS) {
+    const currentValue = (userSettings.settings as Record<string, unknown>)[key]
+    if (currentValue !== undefined) {
+      storeOwned[key] = currentValue
+    }
+  }
+
+  return {
+    ...incoming,
+    settings: { ...incoming.settings, ...storeOwned },
+  }
+}
+
 function saveUserConfiguration(settings: Settings) {
   userSettings = settings
   fs.writeFileSync(
@@ -258,7 +278,35 @@ ipcMain.handle("settings:fetch-settings", () => {
   return getUserConfiguration()
 })
 ipcMain.handle("settings:save-settings", (_, settings) => {
-  saveUserConfiguration(settings)
+  saveUserConfiguration(withStoreOwnedSettings(settings))
+})
+
+ipcMain.on("settings:fetch-settings-sync", (event) => {
+  try {
+    event.returnValue = getUserConfiguration()
+  } catch (error) {
+    console.error("Failed to read user settings synchronously", error)
+    event.returnValue = null
+  }
+})
+
+ipcMain.on("settings:save-setting-sync", (event, key, value) => {
+  try {
+    const currentSettings = getUserConfiguration()
+    if (currentSettings === null) {
+      event.returnValue = false
+      return
+    }
+
+    saveUserConfiguration({
+      ...currentSettings,
+      settings: { ...currentSettings.settings, [key]: value },
+    })
+    event.returnValue = true
+  } catch (error) {
+    console.error(`Failed to save setting '${key}'`, error)
+    event.returnValue = false
+  }
 })
 
 // Cache connection state from renderer
