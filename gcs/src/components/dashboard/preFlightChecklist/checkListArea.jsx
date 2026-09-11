@@ -3,7 +3,7 @@
 */
 
 // Native imports
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 // 3rd Party Imports
 import { ActionIcon, Button, Checkbox, Modal, Tooltip } from "@mantine/core"
@@ -16,7 +16,6 @@ import {
 
 // Local Imports
 import EditCheckList from "./checkListEdit.jsx"
-import { generateCheckListObjectFromHTMLString } from "../../../helpers/checkList.js"
 
 // Redux
 import { useDispatch, useSelector } from "react-redux"
@@ -32,59 +31,32 @@ export default function CheckListArea({ id }) {
 
   const [showDeleteModal, setDeleteModal] = useState(false)
   const [editCheckListModal, setEditCheckListModal] = useState(false)
-  const [checkBoxListString, setCheckboxListString] = useState(
-    generateCheckboxListString(),
-  )
-  const [mappedItems, setMappedItems] = useState(generateMappedItems())
   const [lastToggleCheck, setLastToggleCheck] = useState(false) // false = uncheck, true = check
 
-  function generateCheckboxListString(set = false) {
-    // Go from list to string, returns0
-    let final = "<ul>"
-    checklist.value.map((element) => {
-      final += "<li><p>" + element.name + "</p></li>"
-    })
+  function toggleCheck() {
+    const updated = checklist.value.map((item) =>
+      item.stateBinding ? item : { ...item, checked: lastToggleCheck },
+    )
 
-    final += "</ul>"
-    if (set) {
-      setCheckboxListString(final)
+    if (JSON.stringify(checklist.value) !== JSON.stringify(updated)) {
+      dispatch(setChecklistValueById({ id: checklist.id, value: updated }))
     }
 
-    return final
-  }
-
-  function generateCheckboxList(defaultCheck = false) {
-    let final = generateCheckListObjectFromHTMLString(
-      checkBoxListString,
-      defaultCheck,
-    )
-    dispatch(setChecklistValueById({ id: checklist.id, value: final }))
-  }
-
-  function toggleCheck() {
-    generateCheckboxList(lastToggleCheck)
     setLastToggleCheck(!lastToggleCheck)
   }
 
   function setChecked(name, value) {
-    let final = []
-    checkBoxListString
-      .split("<li><p>")
-      .splice(1)
-      .forEach((element) => {
-        let elementName = element.split("</p>")[0].trim()
-        final.push({
-          checked:
-            elementName === name
-              ? value
-              : checklist.value.find((e) => e.name === elementName).checked,
-          name: elementName,
-        })
-      })
+    const updated = checklist.value.map((item) => {
+      if (item.name !== name || item.stateBinding) {
+        return item
+      }
+
+      return { ...item, checked: value }
+    })
 
     // Check our checklist value is not the same as the updated one to stop unnecessary redux calls
-    if (JSON.stringify(checklist.value) !== JSON.stringify(final)) {
-      dispatch(setChecklistValueById({ id: checklist.id, value: final }))
+    if (JSON.stringify(checklist.value) !== JSON.stringify(updated)) {
+      dispatch(setChecklistValueById({ id: checklist.id, value: updated }))
     }
   }
 
@@ -105,26 +77,6 @@ export default function CheckListArea({ id }) {
     downloadElement.click()
     URL.revokeObjectURL(objectUrl)
   }
-
-  function generateMappedItems() {
-    return checklist.value.map((element) => {
-      return (
-        <Checkbox
-          checked={element.checked}
-          key={element.name}
-          label={element.name}
-          onChange={() => setChecked(element.name, !element.checked)}
-        />
-      )
-    })
-  }
-
-  useEffect(() => {
-    setMappedItems(generateMappedItems())
-    dispatch(
-      setChecklistValueById({ id: checklist.id, value: checklist.value }),
-    )
-  }, [checklist.value])
 
   return (
     <>
@@ -165,18 +117,28 @@ export default function CheckListArea({ id }) {
           </div>
         </div>
 
-        {mappedItems}
+        {checklist.value.map((item, index) => (
+          <Tooltip
+            label="Auto completing field, this can't be manually checked"
+            disabled={item.stateBinding == null}
+            openDelay={500}
+            key={`${item.name}-${index}`}
+          >
+            <Checkbox
+              checked={item.checked}
+              key={`${item.name}-${index}`}
+              label={item.name}
+              onChange={() => setChecked(item.name, !item.checked)}
+            />
+          </Tooltip>
+        ))}
       </div>
 
       {/* Edit mode */}
       <EditCheckList
-        passedName={checklist.name}
+        checklist={checklist}
         opened={editCheckListModal}
         close={() => setEditCheckListModal(false)}
-        checklistId={checklist.id}
-        checkListSet={[checkBoxListString, setCheckboxListString]}
-        generateCheckboxListString={generateCheckboxListString}
-        generateCheckboxList={generateCheckboxList}
       />
 
       {/* Generic "are you sure" modal */}

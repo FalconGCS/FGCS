@@ -1,5 +1,9 @@
 import { createSelector, createSlice } from "@reduxjs/toolkit"
 import { v4 as uuidv4 } from "uuid"
+import { CHECKLIST_AUTO_BINDINGS } from "../../helpers/checklistAutoBindings"
+import { setConnected } from "./droneConnectionSlice"
+import { setEkfStatusReportData, setGpsRawIntData } from "./droneInfoSlice"
+import { EKF_STATUS_WARNING_LEVEL } from "../../helpers/mavlinkConstants"
 
 const checklistSlice = createSlice({
   name: "checklist",
@@ -44,6 +48,77 @@ const checklistSlice = createSlice({
         )
       }
     },
+    setChecklistItemStateBinding: (state, action) => {
+      const { checklistId, itemName, stateBinding } = action.payload
+      const binding =
+        typeof stateBinding === "string" ? stateBinding.trim() : null
+
+      state.items = state.items.map((checklist) => {
+        if (checklist.id !== checklistId) {
+          return checklist
+        }
+
+        if (!Array.isArray(checklist.value)) {
+          return checklist
+        }
+
+        return {
+          ...checklist,
+          value: checklist.value.map((valueItem) => {
+            if (valueItem.name !== itemName) {
+              return valueItem
+            }
+
+            if (binding) {
+              return { ...valueItem, stateBinding: binding }
+            }
+
+            const rest = { ...valueItem }
+            delete rest.stateBinding
+            return rest
+          }),
+        }
+      })
+    },
+    setChecklistAutoBindingChecked: (state, action) => {
+      const { bindingKey, checked } = action.payload
+      applyAutoBinding(state, bindingKey, Boolean(checked))
+    },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(setConnected, (state, action) => {
+      applyAutoBinding(
+        state,
+        CHECKLIST_AUTO_BINDINGS.DroneConnected.key,
+        action.payload,
+      )
+    })
+    builder.addCase(setGpsRawIntData, (state, action) => {
+      applyAutoBinding(
+        state,
+        CHECKLIST_AUTO_BINDINGS.GpsSatsGt10.key,
+        Boolean(action.payload.satellites_visible > 10),
+      )
+
+      applyAutoBinding(
+        state,
+        CHECKLIST_AUTO_BINDINGS.GpsHdopLt1.key,
+        Boolean(action.payload.hdop != null && action.payload.hdop < 1),
+      )
+
+      applyAutoBinding(
+        state,
+        CHECKLIST_AUTO_BINDINGS.GpsFixGte3.key,
+        Boolean(action.payload.fix_type >= 3),
+      )
+    })
+    builder.addCase(setEkfStatusReportData, (state, action) => {
+      applyAutoBinding(
+        state,
+        CHECKLIST_AUTO_BINDINGS.CompassHealthy.key,
+        Boolean(action.payload.compass_variance <= EKF_STATUS_WARNING_LEVEL),
+      )
+    })
   },
   selectors: {
     selectChecklists: (state) => {
@@ -51,6 +126,20 @@ const checklistSlice = createSlice({
     },
   },
 })
+
+function applyAutoBinding(state, bindingKey, checked) {
+  state.items.forEach((checklist) => {
+    if (!Array.isArray(checklist.value)) {
+      return
+    }
+
+    checklist.value.forEach((valueItem) => {
+      if (valueItem.stateBinding === bindingKey) {
+        valueItem.checked = checked
+      }
+    })
+  })
+}
 
 function doesItemExistById(state, id) {
   return state.items.find((element) => element.id === id)
@@ -75,6 +164,8 @@ export const {
   setChecklistItems,
   setNewChecklistName,
   setChecklistValueById,
+  setChecklistItemStateBinding,
+  setChecklistAutoBindingChecked,
 } = checklistSlice.actions
 export const { selectChecklists } = checklistSlice.selectors
 
