@@ -50,7 +50,6 @@ import {
   emitExportMissionToFile,
   emitGetCurrentMission,
   emitGetTargetInfo,
-  emitGetWaypointRadius,
   emitImportMissionFromFile,
   emitSetWaypointRadius,
   emitWriteCurrentMission,
@@ -153,11 +152,6 @@ export default function Missions() {
   const [acceptanceRadiusInput, setAcceptanceRadiusInput] = useState(
     effectiveAcceptanceRadius,
   )
-
-  // Read the aircraft's parameter once the missions page is up and connected
-  useEffect(() => {
-    if (connected) dispatch(emitGetWaypointRadius())
-  }, [connected, dispatch])
 
   // Follow the source of truth when it changes underneath the input
   useEffect(() => {

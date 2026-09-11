@@ -10,7 +10,7 @@ from app.controllers.missionController import (
 from app.controllers.missionController import (
     importMissionFromFile as importMissionFromFileNotConnected,
 )
-from app.utils import notConnectedError
+from app.utils import coerceFiniteNumber, notConnectedError
 
 
 class CurrentMissionType(TypedDict):
@@ -370,11 +370,14 @@ def setWaypointRadius(data: WaypointRadiusDataType) -> None:
     if not droneStatus.drone:
         return notConnectedError(action="set waypoint radius")
 
-    radius = data.get("radius", None)
+    requested_radius = data.get("radius", None)
+    radius = coerceFiniteNumber(requested_radius)
     if radius is None or radius <= 0:
         socketio.emit(
             "params_error",
-            {"message": f"Waypoint radius must be a positive number, got {radius}."},
+            {
+                "message": f"Waypoint radius must be a positive number, got {requested_radius}."
+            },
         )
         return
 

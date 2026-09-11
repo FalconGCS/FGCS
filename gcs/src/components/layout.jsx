@@ -23,7 +23,10 @@ import {
   selectAircraftTypeString,
   selectHasEverHadGpsFix,
 } from "../redux/slices/droneInfoSlice"
-import { selectShouldFetchAllMissionsOnDashboard } from "../redux/slices/missionSlice"
+import {
+  emitGetWaypointRadius,
+  selectShouldFetchAllMissionsOnDashboard,
+} from "../redux/slices/missionSlice"
 
 export default function Layout({ children, currentPage }) {
   const dispatch = useDispatch()
@@ -53,6 +56,10 @@ export default function Layout({ children, currentPage }) {
       if (aircraftTypeString === "Plane") {
         dispatch(emitGetLoiterRadius())
       }
+    }
+
+    if (currentPageLowerCase == "missions") {
+      dispatch(emitGetWaypointRadius())
     }
   }, [currentPage, connectedToDrone, hasEverHadGpsFix])
 
