@@ -1,9 +1,9 @@
 import json
 import lzma
 import os
-import xml.etree.ElementTree as ET
-from urllib.error import HTTPError, URLError
-from urllib.request import urlretrieve
+
+import defusedxml.ElementTree as ET
+import requests
 
 # https://autotest.ardupilot.org/LogMessages/
 log_message_defs = [
@@ -25,7 +25,10 @@ if os.path.exists(temp_file_name):
 for url, output_filename in log_message_defs:
     try:
         print(f"Downloading {url}...")
-        urlretrieve(url, temp_file_name)
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        with open(temp_file_name, "wb") as f:
+            f.write(response.content)
 
         # Validate file was downloaded
         if not os.path.exists(temp_file_name):
@@ -87,7 +90,7 @@ for url, output_filename in log_message_defs:
 
         print(f"Generated {output_filename}")
 
-    except (HTTPError, URLError) as e:
+    except requests.exceptions.RequestException as e:
         print(f"Error downloading {url}: {e}")
         print(f"Skipping {output_filename}")
         continue
