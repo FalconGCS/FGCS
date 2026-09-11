@@ -10,6 +10,8 @@ import {
 
 export const DEFAULT_WAYPOINT_ALTITUDE = 30
 
+export const DEFAULT_ACCEPTANCE_RADIUS = 10
+
 const newItemAltitude = (state) =>
   state.activeTab === "mission"
     ? state.defaultWaypointAltitude
@@ -66,6 +68,14 @@ const missionInfoSlice = createSlice({
     // Altitude given to new mission waypoints, persisted to localStorage by
     // the store so it survives a restart.
     defaultWaypointAltitude: DEFAULT_WAYPOINT_ALTITUDE,
+    // Fallback acceptance radius in metres, used when disconnected. Persisted to
+    // localStorage by the store alongside defaultWaypointAltitude.
+    acceptanceRadius: DEFAULT_ACCEPTANCE_RADIUS,
+    // The radius read off a connected aircraft, as { radius, paramId } in metres,
+    // or null when unknown. Live vehicle state, so deliberately not persisted.
+    vehicleWaypointRadius: null,
+    hoveredMissionItemSeq: null,
+    selectedMissionItemId: null,
     contextMenu: {
       isOpen: false,
       position: { x: 0, y: 0 },
@@ -307,6 +317,14 @@ const missionInfoSlice = createSlice({
       if (!Number.isFinite(altitude)) return
       state.defaultWaypointAltitude = altitude
     },
+    setAcceptanceRadius: (state, action) => {
+      const radius = Number(action.payload)
+      if (!Number.isFinite(radius) || radius <= 0) return
+      state.acceptanceRadius = radius
+    },
+    setVehicleWaypointRadius: (state, action) => {
+      state.vehicleWaypointRadius = action.payload
+    },
     createNewSpecificMissionItem: (state, action) => {
       const { x, y, z, command } = action.payload
 
@@ -454,6 +472,14 @@ const missionInfoSlice = createSlice({
       if (action.payload === state.activeTab) return
       state.activeTab = action.payload
     },
+    setHoveredMissionItemSeq: (state, action) => {
+      if (action.payload === state.hoveredMissionItemSeq) return
+      state.hoveredMissionItemSeq = action.payload
+    },
+    setSelectedMissionItemId: (state, action) => {
+      if (action.payload === state.selectedMissionItemId) return
+      state.selectedMissionItemId = action.payload
+    },
     setMissionProgressData: (state, action) => {
       if (action.payload === state.missionProgressData) return
       state.missionProgressData = action.payload
@@ -572,6 +598,8 @@ const missionInfoSlice = createSlice({
     emitImportMissionFromFile: () => {},
     emitExportMissionToFile: () => {},
     emitControlMission: () => {},
+    emitGetWaypointRadius: () => {},
+    emitSetWaypointRadius: () => {},
   },
   selectors: {
     selectCurrentMission: (state) => state.currentMission,
@@ -591,7 +619,11 @@ const missionInfoSlice = createSlice({
     selectMissionProgressModal: (state) => state.modals.missionProgressModal,
     selectMissionProgressData: (state) => state.missionProgressData,
     selectActiveTab: (state) => state.activeTab,
+    selectHoveredMissionItemSeq: (state) => state.hoveredMissionItemSeq,
+    selectSelectedMissionItemId: (state) => state.selectedMissionItemId,
     selectDefaultWaypointAltitude: (state) => state.defaultWaypointAltitude,
+    selectAcceptanceRadius: (state) => state.acceptanceRadius,
+    selectVehicleWaypointRadius: (state) => state.vehicleWaypointRadius,
     selectContextMenu: (state) => state.contextMenu,
     selectMissionDistanceMeasurements: (state) =>
       state.distanceMeasurements.items,
@@ -749,7 +781,11 @@ export const {
   selectMissionProgressModal,
   selectMissionProgressData,
   selectActiveTab,
+  selectHoveredMissionItemSeq,
+  selectSelectedMissionItemId,
   selectDefaultWaypointAltitude,
+  selectAcceptanceRadius,
+  selectVehicleWaypointRadius,
   selectContextMenu,
   selectMissionDistanceMeasurements,
   selectMissionDistanceMeasurementDraftStart,
@@ -772,6 +808,8 @@ export const {
   reorderDrawingItem,
   createNewDefaultDrawingItem,
   setDefaultWaypointAltitude,
+  setAcceptanceRadius,
+  setVehicleWaypointRadius,
   createNewSpecificMissionItem,
   clearDrawingItems,
   createFencePolygon,
@@ -782,6 +820,8 @@ export const {
   setUnwrittenChanges,
   setMissionProgressModal,
   setActiveTab,
+  setHoveredMissionItemSeq,
+  setSelectedMissionItemId,
   setMissionProgressData,
   resetMissionProgressData,
   updateContextMenuState,
@@ -799,6 +839,8 @@ export const {
   setDashboardMissionFetchingNotificationId,
   setIsFetchingDashboardMission,
   emitControlMission,
+  emitGetWaypointRadius,
+  emitSetWaypointRadius,
 } = missionInfoSlice.actions
 
 export default missionInfoSlice

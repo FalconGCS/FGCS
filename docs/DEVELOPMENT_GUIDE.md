@@ -74,11 +74,14 @@ Edit the `.env` file to include your Maptiler API key, it can be generated [on m
     ```bash
     cd data
     python generate_param_definitions.py
+    python generate_mav_cmd_param_metadata.py
     ```
 
-   This now fetches ArduPlane and ArduCopter definitions for all available 4.x
-   versions (from 4.0 up to latest 4.x) and writes versioned files plus a
-   `gen_apm_params_versions.json` manifest.
+   The first script fetches ArduPlane and ArduCopter definitions for all
+   available 4.x versions (from 4.0 up to latest 4.x) and writes versioned files
+   plus a `gen_apm_params_versions.json` manifest. The second writes
+   `gen_mav_cmd_param_meta.json`, the per-command param labels used by the
+   mission table tooltips.
 
 ### Running the Application
 

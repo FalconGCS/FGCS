@@ -13,7 +13,7 @@ function RallyItemsTableNonMemo({ tableSectionHeight }) {
 
   return (
     <Table.ScrollContainer maxHeight={tableSectionHeight}>
-      <Table striped withColumnBorders stickyHeader>
+      <Table withColumnBorders stickyHeader>
         <Table.Thead>
           <Table.Tr>
             <Table.Th></Table.Th>

@@ -336,7 +336,7 @@ export const PLANE_MISSION_ITEM_COMMANDS_LIST = {
   203: "MAV_CMD_DO_DIGICAM_CONTROL", // (Camera enabled only)
   206: "MAV_CMD_DO_SET_CAM_TRIGG_DIST", // (Camera enabled only)
   201: "MAV_CMD_DO_SET_ROI", // (Gimbal/mount enabled only)
-  10000: "MAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW", // (Gimbal/mount enabled only)
+  1000: "MAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW", // (Gimbal/mount enabled only)
   177: "MAV_CMD_DO_JUMP",
   600: "MAV_CMD_JUMP_TAG",
   601: "MAV_CMD_DO_JUMP_TAG",
@@ -382,7 +382,7 @@ export const COPTER_MISSION_ITEM_COMMANDS_LIST = {
   206: "MAV_CMD_DO_SET_CAM_TRIGG_DIST", // (Camera enabled only)
   201: "MAV_CMD_DO_SET_ROI",
   205: "MAV_CMD_DO_MOUNT_CONTROL", // (Gimbal/mount enabled only)
-  10000: "MAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW", // (Gimbal/mount enabled only)
+  1000: "MAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW", // (Gimbal/mount enabled only)
   208: "MAV_CMD_DO_PARACHUTE", // (Parachute enabled only)
   211: "MAV_CMD_DO_GRIPPER",
   222: "MAV_CMD_DO_GUIDED_LIMITS", // (NAV_GUIDED only)

@@ -114,12 +114,32 @@ if (-not (Test-Path .\dist\fgcs_backend)) {
   Write-Error "PyInstaller did not produce radio\dist\fgcs_backend"
   exit 1
 }
+# A backend left running from a previous session holds its own DLLs open, so the
+# delete below only partly succeeds. Stop it first; nothing else should be using
+# these files. Note the Flask reloader runs a child process too, so kill by image
+# name rather than by a single PID.
+taskkill /f /im fgcs_backend.exe 2>$null | Out-Null
+
 if (Test-Path ..\gcs\extras) {
-  Remove-Item -Path ..\gcs\extras -Recurse -Force
+  Remove-Item -Path ..\gcs\extras -Recurse -Force -ErrorAction SilentlyContinue
 }
+
+# Refuse to continue on a partial delete. Move-Item moves *into* a directory
+# that still exists, which would leave the new build nested at
+# extras\fgcs_backend\ while the stale exe and a half deleted _internal stayed at
+# the top level -- an installer that packages happily and then cannot start its
+# backend.
+if (Test-Path ..\gcs\extras) {
+  Write-Error "Could not clear gcs\extras. Something still holds files open there (a running fgcs_backend.exe, or the app itself). Close it and re-run."
+  exit 1
+}
+
 Move-Item .\dist\fgcs_backend\ ..\gcs\extras
-if (-not (Test-Path ..\gcs\extras)) {
-  Write-Error "Failed to move backend to gcs\extras"
+
+# Check the exe landed where the app looks for it (electron spawns
+# "extras/fgcs_backend.exe"), not merely that some extras directory exists.
+if (-not (Test-Path ..\gcs\extras\fgcs_backend.exe)) {
+  Write-Error "Backend was not moved to gcs\extras\fgcs_backend.exe"
   exit 1
 }
 
@@ -143,6 +163,13 @@ if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }
 Write-Output "Generated log message descriptions"
+
+python generate_mav_cmd_param_metadata.py
+if ($LASTEXITCODE -ne 0) {
+  Write-Error "Failed to generate MAV_CMD param metadata"
+  exit $LASTEXITCODE
+}
+Write-Output "Generated MAV_CMD param metadata"
 
 Set-Location ../
 yarn

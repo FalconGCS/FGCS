@@ -1,4 +1,5 @@
 import logging
+import math
 import sys
 from typing import Any, List, Optional, Union
 
@@ -208,6 +209,21 @@ def missingParameterError(endpoint: str, params: Union[str, list[str]]) -> None:
             + "."
         },
     )
+
+
+def coerceFiniteNumber(value: Any) -> Optional[float]:
+    """
+    Coerce a value from a socket payload into a finite number.
+    """
+    if isinstance(value, bool):
+        return None
+
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+
+    return number if math.isfinite(number) else None
 
 
 def sendMessage(msg: Any) -> None:

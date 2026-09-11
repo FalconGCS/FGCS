@@ -44,6 +44,10 @@ jobs:
         working-directory: gcs/data
         run: python generate_param_definitions.py
 
+      - name: Generate MAV_CMD param metadata
+        working-directory: gcs/data
+        run: python generate_mav_cmd_param_metadata.py
+
       - name: Run playwright tests
         working-directory: gcs
         run: yarn test

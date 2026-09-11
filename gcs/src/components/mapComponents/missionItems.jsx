@@ -6,17 +6,26 @@
 */
 import { useMemo } from "react"
 import { useDispatch, useSelector } from "react-redux"
-import { selectCurrentPage } from "../../redux/slices/droneConnectionSlice"
+import {
+  selectConnectedToDrone,
+  selectCurrentPage,
+} from "../../redux/slices/droneConnectionSlice"
 import { selectHomePosition } from "../../redux/slices/droneInfoSlice"
 import {
   insertDrawingItemAfter,
+  selectAcceptanceRadius,
   selectActiveTab,
+  selectHoveredMissionItemSeq,
   selectPlannedHomePosition,
+  selectVehicleWaypointRadius,
+  setHoveredMissionItemSeq,
 } from "../../redux/slices/missionSlice"
 
 // Helper imports
+import { getAcceptanceRadiusMeters } from "../../helpers/acceptanceRadius"
 import { coordToInt, intToCoord } from "../../helpers/dataFormatters"
 import { filterMissionItems } from "../../helpers/filterMissions"
+import { getLoiterRadiusMeters } from "../../helpers/loiterCommands"
 import {
   BRANCH_END_COMMANDS,
   buildMissionPathSegments,
@@ -52,13 +61,6 @@ const RETURN_PATH_COLOURS = [
   tailwindColors.teal[300],
   tailwindColors.sky[400],
 ]
-
-const LOITER_RADIUS_PARAMS = {
-  17: "param3", // MAV_CMD_NAV_LOITER_UNLIM
-  18: "param3", // MAV_CMD_NAV_LOITER_TURNS
-  19: "param3", // MAV_CMD_NAV_LOITER_TIME
-  31: "param2", // MAV_CMD_NAV_LOITER_TO_ALT
-}
 
 function getMidpointCoordinates(startItem, endItem) {
   return midpoint(
@@ -131,6 +133,10 @@ export default function MissionItems({ missionItems }) {
     useSelector(selectActiveTab) === "mission" && currentPage === "missions"
   const plannedHomePosition = useSelector(selectPlannedHomePosition)
   const currentHomePosition = useSelector(selectHomePosition)
+  const hoveredMissionItemSeq = useSelector(selectHoveredMissionItemSeq)
+  const connectedToDrone = useSelector(selectConnectedToDrone)
+  const acceptanceRadius = useSelector(selectAcceptanceRadius)
+  const vehicleWaypointRadius = useSelector(selectVehicleWaypointRadius)
   const homePosition =
     currentPage === "missions" ? plannedHomePosition : currentHomePosition
 
@@ -186,14 +192,35 @@ export default function MissionItems({ missionItems }) {
       [missionItems, filteredMissionItems, homePosition, takeoffWaypoint],
     )
 
+  // A connected aircraft's own parameter wins over the manually set radius
+  const acceptanceRadiusDefault =
+    connectedToDrone && vehicleWaypointRadius !== null
+      ? vehicleWaypointRadius.radius
+      : acceptanceRadius
+
+  const showAcceptanceRadius = currentPage === "missions"
+
+  const acceptanceCircles = useMemo(() => {
+    if (!showAcceptanceRadius) return []
+
+    return displayedMissionItems
+      .map((item) => {
+        const radius = getAcceptanceRadiusMeters(item, acceptanceRadiusDefault)
+        if (radius === null) return null
+
+        return circle(missionItemToCoord(item), radius, {
+          steps: 64,
+          units: "meters",
+        })
+      })
+      .filter(Boolean)
+  }, [showAcceptanceRadius, displayedMissionItems, acceptanceRadiusDefault])
+
   const loiterCircles = useMemo(() => {
     return displayedMissionItems
-      .filter((item) => item.command in LOITER_RADIUS_PARAMS)
       .map((item) => {
-        const radius = Math.abs(
-          Number(item[LOITER_RADIUS_PARAMS[item.command]]),
-        )
-        if (!Number.isFinite(radius) || radius === 0) return null
+        const radius = getLoiterRadiusMeters(item)
+        if (radius === null) return null
 
         return circle(missionItemToCoord(item), radius, {
           steps: 64,
@@ -240,6 +267,25 @@ export default function MissionItems({ missionItems }) {
   return (
     <>
       <Source
+        id="acceptance-radius-source"
+        type="geojson"
+        data={{
+          type: "FeatureCollection",
+          features: acceptanceCircles,
+        }}
+      >
+        <Layer
+          id="acceptance-radius-layer"
+          type="line"
+          paint={{
+            "line-color": tailwindColors.sky[300],
+            "line-width": 1,
+            "line-opacity": 0.8,
+          }}
+        />
+      </Source>
+
+      <Source
         id="loiter-radius-source"
         type="geojson"
         data={{
@@ -271,6 +317,10 @@ export default function MissionItems({ missionItems }) {
             text={`${item.seq}`}
             tooltipText={item.z ? `Alt: ${item.z}` : null}
             draggable={editable}
+            highlighted={hoveredMissionItemSeq === item.seq}
+            onHoverChange={(isHovered) =>
+              dispatch(setHoveredMissionItemSeq(isHovered ? item.seq : null))
+            }
           />
         )
       })}

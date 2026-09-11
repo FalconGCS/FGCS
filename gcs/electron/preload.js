@@ -92,7 +92,19 @@ const ALLOWED_ON_CHANNELS = [
   "app:statustext-window-closed",
 ]
 
+const ALLOWED_SEND_SYNC_CHANNELS = [
+  "settings:fetch-settings-sync",
+  "settings:save-setting-sync",
+]
+
 contextBridge.exposeInMainWorld("ipcRenderer", {
+  sendSync: (channel, ...args) => {
+    if (ALLOWED_SEND_SYNC_CHANNELS.includes(channel)) {
+      return ipcRenderer.sendSync(channel, ...args)
+    }
+    throw new Error(`IPC sendSync channel '${channel}' is not allowed`)
+  },
+
   // Secure invoke method - only allows whitelisted channels
   invoke: (channel, ...args) => {
     if (ALLOWED_INVOKE_CHANNELS.includes(channel)) {

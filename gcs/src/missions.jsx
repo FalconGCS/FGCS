@@ -51,8 +51,10 @@ import {
   emitGetCurrentMission,
   emitGetTargetInfo,
   emitImportMissionFromFile,
+  emitSetWaypointRadius,
   emitWriteCurrentMission,
   getFrameKey,
+  selectAcceptanceRadius,
   selectActiveTab,
   selectDefaultWaypointAltitude,
   selectDrawingFenceItems,
@@ -63,6 +65,8 @@ import {
   selectPlannedHomePosition,
   selectTargetInfo,
   selectUnwrittenChanges,
+  selectVehicleWaypointRadius,
+  setAcceptanceRadius,
   setActiveTab,
   setDefaultWaypointAltitude,
   setMissionProgressData,
@@ -137,6 +141,40 @@ export default function Missions() {
   const [defaultAltitudeInput, setDefaultAltitudeInput] = useState(
     defaultWaypointAltitude,
   )
+
+  const acceptanceRadius = useSelector(selectAcceptanceRadius)
+  const vehicleWaypointRadius = useSelector(selectVehicleWaypointRadius)
+  const waypointRadiusParamId = vehicleWaypointRadius?.paramId ?? null
+  const effectiveAcceptanceRadius =
+    connected && vehicleWaypointRadius !== null
+      ? vehicleWaypointRadius.radius
+      : acceptanceRadius
+  const [acceptanceRadiusInput, setAcceptanceRadiusInput] = useState(
+    effectiveAcceptanceRadius,
+  )
+
+  // Follow the source of truth when it changes underneath the input
+  useEffect(() => {
+    setAcceptanceRadiusInput(effectiveAcceptanceRadius)
+  }, [effectiveAcceptanceRadius])
+
+  function commitAcceptanceRadius() {
+    if (
+      isInvalidInputNumber(acceptanceRadiusInput) ||
+      acceptanceRadiusInput <= 0
+    ) {
+      setAcceptanceRadiusInput(effectiveAcceptanceRadius)
+      return
+    }
+
+    if (acceptanceRadiusInput === effectiveAcceptanceRadius) return
+
+    if (connected) {
+      dispatch(emitSetWaypointRadius(acceptanceRadiusInput))
+    } else {
+      dispatch(setAcceptanceRadius(acceptanceRadiusInput))
+    }
+  }
 
   useEffect(() => {
     if (tabsListRef.current) {
@@ -474,6 +512,28 @@ export default function Missions() {
                   suffix="m"
                   hideControls
                 />
+
+                <Tooltip
+                  label={
+                    connected
+                      ? `Sets ${waypointRadiusParamId ?? "the waypoint radius parameter"} on the aircraft`
+                      : "Sets the acceptance waypoint radius"
+                  }
+                >
+                  <NumberInput
+                    label="Acceptance radius"
+                    value={acceptanceRadiusInput}
+                    onChange={setAcceptanceRadiusInput}
+                    onBlur={commitAcceptanceRadius}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitAcceptanceRadius()
+                    }}
+                    min={0}
+                    allowNegative={false}
+                    suffix="m"
+                    hideControls
+                  />
+                </Tooltip>
               </div>
 
               <Divider className="my-1" />
