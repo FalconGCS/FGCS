@@ -28,6 +28,7 @@ import MissionStatistics from "./components/missions/missionStatistics"
 import MissionsMapSection from "./components/missions/missionsMap"
 import RallyItemsTable from "./components/missions/rallyItemsTable"
 import { coordToInt, intToCoord } from "./helpers/dataFormatters"
+import { MAV_FRAME_DROPDOWN_DATA } from "./helpers/mavlinkConstants"
 import { buildMissionElevationProfile } from "./helpers/missionElevationProfile"
 
 // Redux
@@ -57,6 +58,7 @@ import {
   selectAcceptanceRadius,
   selectActiveTab,
   selectDefaultWaypointAltitude,
+  selectDefaultWaypointFrame,
   selectDrawingFenceItems,
   selectDrawingMissionItems,
   selectDrawingRallyItems,
@@ -68,7 +70,9 @@ import {
   selectVehicleWaypointRadius,
   setAcceptanceRadius,
   setActiveTab,
+  setAllMissionItemsFrame,
   setDefaultWaypointAltitude,
+  setDefaultWaypointFrame,
   setMissionProgressData,
   setMissionProgressModal,
   setPlannedHomePosition,
@@ -172,6 +176,7 @@ export default function Missions() {
   )
 
   const defaultWaypointAltitude = useSelector(selectDefaultWaypointAltitude)
+  const defaultWaypointFrame = useSelector(selectDefaultWaypointFrame)
   const [defaultAltitudeInput, setDefaultAltitudeInput] = useState(
     defaultWaypointAltitude,
   )
@@ -559,6 +564,31 @@ export default function Missions() {
                   suffix="m"
                   hideControls
                 />
+
+                <div className="flex flex-col gap-1">
+                  <Select
+                    label="Default waypoint frame"
+                    data={MAV_FRAME_DROPDOWN_DATA}
+                    value={defaultWaypointFrame.toString()}
+                    onChange={(value) => {
+                      if (value === null) return
+                      dispatch(setDefaultWaypointFrame(parseInt(value)))
+                    }}
+                    allowDeselect={false}
+                    comboboxProps={{ position: "top-start" }}
+                  />
+
+                  <Button
+                    variant="transparent"
+                    size="compact-xs"
+                    className="self-start"
+                    onClick={() =>
+                      dispatch(setAllMissionItemsFrame(defaultWaypointFrame))
+                    }
+                  >
+                    Apply to all waypoints
+                  </Button>
+                </div>
 
                 <Tooltip
                   label={
