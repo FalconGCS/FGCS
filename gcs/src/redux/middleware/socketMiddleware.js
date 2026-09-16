@@ -394,6 +394,12 @@ const socketMiddleware = (store) => {
       }
       case "ESC_TELEMETRY_1_TO_4":
       case "ESC_TELEMETRY_5_TO_8":
+      case "ESC_TELEMETRY_9_TO_12":
+      case "ESC_TELEMETRY_13_TO_16":
+      case "ESC_TELEMETRY_17_TO_20":
+      case "ESC_TELEMETRY_21_TO_24":
+      case "ESC_TELEMETRY_25_TO_28":
+      case "ESC_TELEMETRY_29_TO_32":
         store.dispatch(setEscTelemetryData(msg))
         break
       case "SERVO_OUTPUT_RAW":
