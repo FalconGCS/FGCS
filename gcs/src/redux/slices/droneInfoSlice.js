@@ -15,6 +15,12 @@ const GPS_TRACK_MAX_LENGTH = 300
 const minGpsSpeedForHeading = 0.5 // m/s
 const minGpsDistanceForHeading = 0.5 // meters
 
+// ArduPilot reports ESC telemetry in banks of four, for up to 32 ESCs
+export const ESC_TELEMETRY_MESSAGES = Array.from(
+  { length: 8 },
+  (_, bank) => `ESC_TELEMETRY_${bank * 4 + 1}_TO_${bank * 4 + 4}`,
+)
+
 const droneInfoSlice = createSlice({
   name: "droneInfo",
   initialState: {
@@ -32,10 +38,9 @@ const droneInfoSlice = createSlice({
       heading: 0.0,
       throttle: 0.0,
     },
-    escData: {
-      ESC_TELEMETRY_1_TO_4: null,
-      ESC_TELEMETRY_5_TO_8: null,
-    },
+    escData: Object.fromEntries(
+      ESC_TELEMETRY_MESSAGES.map((message) => [message, null]),
+    ),
     gpsData: {
       mavpackettype: "GLOBAL_POSITION_INT",
       time_boot_ms: 0,
@@ -202,7 +207,7 @@ const droneInfoSlice = createSlice({
     },
     setEscTelemetryData: (state, action) => {
       const packetType = action.payload?.mavpackettype
-      if (!packetType) return
+      if (!packetType || !ESC_TELEMETRY_MESSAGES.includes(packetType)) return
 
       state.escData = {
         ...state.escData,
@@ -384,8 +389,7 @@ const droneInfoSlice = createSlice({
     selectFlightSwVersion: (state) => state.flightSwVersion,
     selectAttitude: (state) => state.attitudeData,
     selectTelemetry: (state) => state.telemetryData,
-    selectEscTelemetry1To4: (state) => state.escData.ESC_TELEMETRY_1_TO_4,
-    selectEscTelemetry5To8: (state) => state.escData.ESC_TELEMETRY_5_TO_8,
+    selectEscData: (state) => state.escData,
     selectGPS: (state) => state.gpsData,
     selectHeading: (state) => centiDegToDeg(state.gpsData.hdg),
     selectHomePosition: (state) => state.homePosition,
@@ -493,39 +497,40 @@ export const selectAttitudeDeg = createSelector(
   },
 )
 
+function escHasData(esc) {
+  return [esc.rpm, esc.current, esc.voltage, esc.temperature].some(
+    (value) => value !== null && value !== 0,
+  )
+}
+
 export const selectEscTelemetry = createSelector(
-  [
-    droneInfoSlice.selectors.selectEscTelemetry1To4,
-    droneInfoSlice.selectors.selectEscTelemetry5To8,
-  ],
-  (esc1To4, esc5To8) => {
+  [droneInfoSlice.selectors.selectEscData],
+  (escData) => {
     const escs = []
 
-    function pushEscPacket(packet, baseIndex) {
+    ESC_TELEMETRY_MESSAGES.forEach((message, bank) => {
+      const packet = escData?.[message]
       if (!packet) return
 
       // Most fields are arrays of length 4, but guard anyway
-      const rpm = packet.rpm ?? []
-      const count = Math.min(4, rpm.length)
+      const count = Math.min(4, packet.rpm?.length ?? 0)
 
       for (let i = 0; i < count; i++) {
-        escs.push({
-          escId: baseIndex + i + 1,
+        const esc = {
+          escId: bank * 4 + i + 1,
           rpm: packet.rpm?.[i] ?? null,
           current: packet.current?.[i] ?? null,
           voltage: packet.voltage?.[i] ?? null,
           temperature: packet.temperature?.[i] ?? null,
           totalcurrent: packet.totalcurrent?.[i] ?? null,
           timestamp: packet.timestamp ?? null,
-        })
+        }
+
+        if (escHasData(esc)) {
+          escs.push(esc)
+        }
       }
-    }
-
-    // ESC 1-4
-    pushEscPacket(esc1To4, 0)
-
-    // ESC 5-8
-    pushEscPacket(esc5To8, 4)
+    })
 
     return escs
   },
@@ -620,8 +625,7 @@ export const {
   selectHeading,
   selectSystemStatus,
   selectNotificationSound,
-  selectEscTelemetry1To4,
-  selectEscTelemetry5To8,
+  selectEscData,
   selectFlightMode,
   selectAircraftType,
   selectGuidedModePinData,
