@@ -64,6 +64,7 @@ import { showInfoNotification } from "../../helpers/notification"
 import { getContainerPointFromEvent } from "../../helpers/pointer"
 import AddPoiMarkerModal from "../mapComponents/addPoiMarkerModal"
 import ContextMenuSubMenuItem from "../mapComponents/contextMenuSubMenuItem"
+import useContextMenuPosition from "../mapComponents/useContextMenuPosition"
 import DrawLineCoordinates from "../mapComponents/drawLineCoordinates"
 import KmlLayers from "../mapComponents/kmlLayers"
 import POIMarkersContainer from "../mapComponents/poiMarkersContainer"
@@ -109,8 +110,13 @@ function MapSectionNonMemo({ passedRef, onDragstart, mapId = "dashboard" }) {
 
   const [filteredMissionItems, setFilteredMissionItems] = useState([])
 
-  const contextMenuRef = useRef()
+  const contextMenuRef = useRef(null)
   const contextMenuState = useSelector(selectDashboardContextMenu)
+  const contextMenuPosition = useContextMenuPosition(
+    contextMenuRef,
+    contextMenuState.isOpen,
+    contextMenuState.position,
+  )
   const measureDistanceStart = useSelector(
     selectDashboardDistanceMeasurementDraftStart,
   )
@@ -134,20 +140,6 @@ function MapSectionNonMemo({ passedRef, onDragstart, mapId = "dashboard" }) {
       document.removeEventListener("click", closeContextMenu)
     }
   }, [])
-
-  useEffect(() => {
-    if (contextMenuRef.current) {
-      const boundingRect = contextMenuRef.current.getBoundingClientRect()
-      dispatch(
-        updateDashboardContextMenuState({
-          menuSize: {
-            width: Math.round(boundingRect.width),
-            height: Math.round(boundingRect.height),
-          },
-        }),
-      )
-    }
-  }, [contextMenuRef.current])
 
   useEffect(() => {
     if (!connectedToDrone) {
@@ -262,17 +254,6 @@ function MapSectionNonMemo({ passedRef, onDragstart, mapId = "dashboard" }) {
         attributionControl={false}
         dragRotate={false}
         touchRotate={false}
-        onLoad={(e) => {
-          const canvas = e.target.getCanvas()
-          dispatch(
-            updateDashboardContextMenuState({
-              canvasSize: {
-                width: canvas.clientWidth,
-                height: canvas.clientHeight,
-              },
-            }),
-          )
-        }}
         onMoveEnd={(newViewState) =>
           setInitialViewState({
             latitude: newViewState.viewState.latitude,
@@ -417,8 +398,8 @@ function MapSectionNonMemo({ passedRef, onDragstart, mapId = "dashboard" }) {
             ref={contextMenuRef}
             className="absolute bg-falcongrey-700 rounded-md p-1 z-20"
             style={{
-              top: contextMenuState.position.y,
-              left: contextMenuState.position.x,
+              top: contextMenuPosition.y,
+              left: contextMenuPosition.x,
             }}
           >
             <ContextMenuItem onClick={zoomToDrone}>
