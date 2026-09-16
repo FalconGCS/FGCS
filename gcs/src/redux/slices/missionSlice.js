@@ -12,10 +12,24 @@ export const DEFAULT_WAYPOINT_ALTITUDE = 30
 
 export const DEFAULT_ACCEPTANCE_RADIUS = 10
 
+export const getFrameKey = (frame) =>
+  parseInt(
+    Object.keys(MAV_FRAME_LIST).find((key) => MAV_FRAME_LIST[key] == frame),
+  )
+
+export const DEFAULT_WAYPOINT_FRAME = getFrameKey("GLOBAL_RELATIVE_ALT")
+
 const newItemAltitude = (state) =>
   state.activeTab === "mission"
     ? state.defaultWaypointAltitude
     : DEFAULT_WAYPOINT_ALTITUDE
+
+// Only mission items follow the chosen default; fence and rally items are
+// placed against the frame their own command expects
+const newItemFrame = (state) =>
+  state.activeTab === "mission"
+    ? state.defaultWaypointFrame
+    : DEFAULT_WAYPOINT_FRAME
 
 const missionInfoSlice = createSlice({
   name: "missionInfo",
@@ -68,6 +82,9 @@ const missionInfoSlice = createSlice({
     // Altitude given to new mission waypoints, persisted to localStorage by
     // the store so it survives a restart.
     defaultWaypointAltitude: DEFAULT_WAYPOINT_ALTITUDE,
+    // Frame given to new mission waypoints, persisted to localStorage by the
+    // store alongside defaultWaypointAltitude.
+    defaultWaypointFrame: DEFAULT_WAYPOINT_FRAME,
     // Fallback acceptance radius in metres, used when disconnected. Persisted to
     // localStorage by the store alongside defaultWaypointAltitude.
     acceptanceRadius: DEFAULT_ACCEPTANCE_RADIUS,
@@ -230,6 +247,7 @@ const missionInfoSlice = createSlice({
         hasClickedPosition ? y : 0,
         state.targetInfo,
         hasClickedPosition ? newItemAltitude(state) : 0,
+        newItemFrame(state),
       )
       drawingItem.seq = index + 1
       drawingItem.command = { mission: 16, fence: 5004, rally: 5100 }[
@@ -289,6 +307,7 @@ const missionInfoSlice = createSlice({
         y,
         state.targetInfo,
         newItemAltitude(state),
+        newItemFrame(state),
       )
 
       const _type = `${state.activeTab}Items`
@@ -317,6 +336,36 @@ const missionInfoSlice = createSlice({
       if (!Number.isFinite(altitude)) return
       state.defaultWaypointAltitude = altitude
     },
+    setDefaultWaypointFrame: (state, action) => {
+      const frame = Number(action.payload)
+      if (!Number.isInteger(frame) || MAV_FRAME_LIST[frame] === undefined)
+        return
+      state.defaultWaypointFrame = frame
+    },
+    setAllMissionItemsFrame: (state, action) => {
+      const frame = Number(action.payload)
+      if (!Number.isInteger(frame) || MAV_FRAME_LIST[frame] === undefined)
+        return
+
+      let changed = false
+
+      state.drawingItems.missionItems = state.drawingItems.missionItems.map(
+        (item, index) => {
+          if (index === 0 && isGlobalFrameHomeCommand(item)) return item
+          if (item.frame === frame) return item
+
+          changed = true
+          return { ...item, frame }
+        },
+      )
+
+      if (changed) {
+        state.unwrittenChanges = {
+          ...state.unwrittenChanges,
+          mission: true,
+        }
+      }
+    },
     setAcceptanceRadius: (state, action) => {
       const radius = Number(action.payload)
       if (!Number.isFinite(radius) || radius <= 0) return
@@ -338,7 +387,13 @@ const missionInfoSlice = createSlice({
         return
       }
 
-      const drawingItem = newMissionItem(x, y, state.targetInfo)
+      const drawingItem = newMissionItem(
+        x,
+        y,
+        state.targetInfo,
+        DEFAULT_WAYPOINT_ALTITUDE,
+        newItemFrame(state),
+      )
       const _type = `${state.activeTab}Items`
 
       drawingItem.seq = state.drawingItems[_type].length
@@ -593,6 +648,7 @@ const missionInfoSlice = createSlice({
     selectHoveredMissionItemSeq: (state) => state.hoveredMissionItemSeq,
     selectSelectedMissionItemId: (state) => state.selectedMissionItemId,
     selectDefaultWaypointAltitude: (state) => state.defaultWaypointAltitude,
+    selectDefaultWaypointFrame: (state) => state.defaultWaypointFrame,
     selectAcceptanceRadius: (state) => state.acceptanceRadius,
     selectVehicleWaypointRadius: (state) => state.vehicleWaypointRadius,
     selectContextMenu: (state) => state.contextMenu,
@@ -711,16 +767,12 @@ export const closeDashboardMissionFetchingNotificationNoSuccessThunk =
     dispatch(setDashboardMissionFetchingNotificationId(null))
   }
 
-export const getFrameKey = (frame) =>
-  parseInt(
-    Object.keys(MAV_FRAME_LIST).find((key) => MAV_FRAME_LIST[key] == frame),
-  )
-
 export const newMissionItem = (
   x,
   y,
   targetInfo,
   z = DEFAULT_WAYPOINT_ALTITUDE,
+  frame = DEFAULT_WAYPOINT_FRAME,
 ) => {
   return {
     id: uuidv4(),
@@ -728,7 +780,7 @@ export const newMissionItem = (
     x: x,
     y: y,
     z: z,
-    frame: getFrameKey("GLOBAL_RELATIVE_ALT"),
+    frame: frame,
     command: null,
     param1: 0,
     param2: 0,
@@ -761,6 +813,7 @@ export const {
   selectHoveredMissionItemSeq,
   selectSelectedMissionItemId,
   selectDefaultWaypointAltitude,
+  selectDefaultWaypointFrame,
   selectAcceptanceRadius,
   selectVehicleWaypointRadius,
   selectContextMenu,
@@ -785,6 +838,8 @@ export const {
   reorderDrawingItem,
   createNewDefaultDrawingItem,
   setDefaultWaypointAltitude,
+  setDefaultWaypointFrame,
+  setAllMissionItemsFrame,
   setAcceptanceRadius,
   setVehicleWaypointRadius,
   createNewSpecificMissionItem,

@@ -23,6 +23,10 @@ class SetStreamRateType(TypedDict):
 
 GLOBAL_MESSAGE_LISTENERS = ["HEARTBEAT", "STATUSTEXT", "GLOBAL_POSITION_INT", "VFR_HUD"]
 
+ESC_TELEMETRY_MESSAGES = [
+    f"ESC_TELEMETRY_{start}_TO_{start + 3}" for start in range(1, 33, 4)
+]
+
 STATES_MESSAGE_LISTENERS = {
     "dashboard": [
         "BATTERY_STATUS",
@@ -33,8 +37,7 @@ STATES_MESSAGE_LISTENERS = {
         "GPS_RAW_INT",
         "GPS2_RAW",
         "RC_CHANNELS",
-        "ESC_TELEMETRY_1_TO_4",
-        "ESC_TELEMETRY_5_TO_8",
+        *ESC_TELEMETRY_MESSAGES,
         "MISSION_CURRENT",
         "EKF_STATUS_REPORT",
         "VIBRATION",

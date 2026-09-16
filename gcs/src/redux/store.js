@@ -39,6 +39,7 @@ import logAnalyserSlice, {
 import missionInfoSlice, {
   setAcceptanceRadius,
   setDefaultWaypointAltitude,
+  setDefaultWaypointFrame,
   setPlannedHomePosition,
 } from "./slices/missionSlice"
 import paramsSlice from "./slices/paramsSlice"
@@ -266,6 +267,14 @@ if (defaultWaypointAltitude !== null) {
   const parsedDefaultWaypointAltitude = Number(defaultWaypointAltitude)
   if (Number.isFinite(parsedDefaultWaypointAltitude)) {
     store.dispatch(setDefaultWaypointAltitude(parsedDefaultWaypointAltitude))
+  }
+}
+
+const defaultWaypointFrame = localStorage.getItem("defaultWaypointFrame")
+if (defaultWaypointFrame !== null) {
+  const parsedDefaultWaypointFrame = Number(defaultWaypointFrame)
+  if (Number.isInteger(parsedDefaultWaypointFrame)) {
+    store.dispatch(setDefaultWaypointFrame(parsedDefaultWaypointFrame))
   }
 }
 
@@ -505,6 +514,14 @@ store.subscribe(() => {
     updateLocalStorageIfChanged(
       "defaultWaypointAltitude",
       store_mut.missionInfo.defaultWaypointAltitude,
+    )
+  }
+
+  // Store the frame given to newly added mission waypoints
+  if (typeof store_mut.missionInfo.defaultWaypointFrame === "number") {
+    updateLocalStorageIfChanged(
+      "defaultWaypointFrame",
+      store_mut.missionInfo.defaultWaypointFrame,
     )
   }
 
