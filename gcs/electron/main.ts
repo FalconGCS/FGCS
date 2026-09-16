@@ -5,6 +5,7 @@ import {
   app,
   dialog,
   ipcMain,
+  screen,
   shell,
 } from "electron"
 import {
@@ -56,6 +57,12 @@ import registerVibeStatusIPC, {
 import registerVideoIPC, { destroyVideoWindow } from "./modules/videoWindow"
 import createKmlFileManager from "./utils/kmlFileManager"
 import { readParamsFile } from "./utils/paramsFile"
+import {
+  DEFAULT_ZOOM,
+  ZOOM_STEP,
+  clampZoom,
+  getDisplayId,
+} from "./utils/zoomUtils"
 
 // Largest KML we're willing to read into memory
 const MAX_KML_FILE_SIZE_BYTES = 25 * 1024 * 1024
@@ -142,7 +149,6 @@ process.env.VITE_PUBLIC = app.isPackaged
 
 // Fix UI Scaling
 app.commandLine.appendSwitch("high-dpi-support", "1")
-app.commandLine.appendSwitch("force-device-scale-factor", "1")
 
 // Fix linux WebGL error (icl chatgpt made this)
 if (process.platform === "linux") {
@@ -200,6 +206,7 @@ interface Settings {
 let userSettings: Settings | null = null
 
 const STORE_OWNED_SETTING_KEYS = [
+  "zoomFactor",
   "selectedDisplayTelemetry",
   "customDataflashPresets",
   "customFgcsTelemetryPresets",
@@ -279,6 +286,64 @@ function getUserConfiguration() {
   return userSettings
 }
 
+// The user's zoom preference is persisted as `zoomFactor` so it survives
+// launches, reloads and updates. Chromium applies each monitor's display
+// scaling itself, so this factor sits on top of that and does not need to
+// change when the window moves between monitors.
+
+let storedZoom = DEFAULT_ZOOM
+let lastDisplayId: number | null = null
+let zoomSaveTimeout: NodeJS.Timeout | null = null
+
+function loadStoredZoom() {
+  const settings = getUserConfiguration()?.settings as
+    | Record<string, unknown>
+    | undefined
+  storedZoom = clampZoom(settings?.zoomFactor)
+}
+
+function flushZoomToDisk() {
+  if (zoomSaveTimeout !== null) {
+    clearTimeout(zoomSaveTimeout)
+    zoomSaveTimeout = null
+  }
+
+  const currentSettings = getUserConfiguration()
+  if (currentSettings === null) return
+
+  saveUserConfiguration({
+    ...currentSettings,
+    settings: { ...currentSettings.settings, zoomFactor: storedZoom },
+  })
+}
+
+function setStoredZoom(zoom: number) {
+  const clamped = clampZoom(zoom)
+  if (clamped === storedZoom) return
+
+  storedZoom = clamped
+  if (zoomSaveTimeout !== null) clearTimeout(zoomSaveTimeout)
+  zoomSaveTimeout = setTimeout(flushZoomToDisk, 300)
+}
+
+function applyZoom(window: BrowserWindow | null) {
+  if (!window || window.isDestroyed()) return
+
+  lastDisplayId = getDisplayId(window)
+  window.webContents.setZoomFactor(storedZoom)
+}
+
+function captureCurrentZoom(window: BrowserWindow | null) {
+  if (!window || window.isDestroyed()) return
+
+  setStoredZoom(window.webContents.getZoomFactor())
+}
+
+function changeZoomBy(delta: number) {
+  setStoredZoom(storedZoom + delta)
+  applyZoom(win)
+}
+
 ipcMain.handle("settings:fetch-settings", () => {
   return getUserConfiguration()
 })
@@ -346,7 +411,8 @@ ipcMain.on("window:toggle-developer-tools", () => {
   getWindow()?.webContents.toggleDevTools()
 })
 ipcMain.on("window:actual-size", () => {
-  getWindow()?.webContents.setZoomFactor(1)
+  setStoredZoom(DEFAULT_ZOOM)
+  applyZoom(win)
 })
 ipcMain.on("window:toggle-fullscreen", () => {
   getWindow()?.isFullScreen()
@@ -354,12 +420,10 @@ ipcMain.on("window:toggle-fullscreen", () => {
     : getWindow()?.setFullScreen(true)
 })
 ipcMain.on("window:zoom-in", () => {
-  const window = getWindow()?.webContents
-  window?.setZoomFactor(window?.getZoomFactor() + 0.1)
+  changeZoomBy(ZOOM_STEP)
 })
 ipcMain.on("window:zoom-out", () => {
-  const window = getWindow()?.webContents
-  window?.setZoomFactor(window?.getZoomFactor() - 0.1)
+  changeZoomBy(-ZOOM_STEP)
 })
 
 ipcMain.on("window:open-file-in-explorer", (_event, filePath) => {
@@ -435,7 +499,17 @@ function createWindow() {
   // Test active push message to Renderer-process.
   win.webContents.on("did-finish-load", () => {
     win?.webContents.send("main-process-message", new Date().toLocaleString())
-    win?.webContents.setZoomFactor(1.0)
+    applyZoom(win)
+  })
+
+  win.webContents.on("zoom-changed", () => {
+    captureCurrentZoom(win)
+  })
+
+  win.on("moved", () => {
+    if (getDisplayId(win) !== lastDisplayId) {
+      applyZoom(win)
+    }
   })
 
   if (VITE_DEV_SERVER_URL) {
@@ -454,6 +528,10 @@ function createWindow() {
   })
 
   win.on("close", () => {
+    // Backstop for zoom applied via the native ctrl+plus/minus/0 accelerators,
+    // which fire no main-process event
+    captureCurrentZoom(win)
+    flushZoomToDisk()
     closeWithBackend()
   })
 
@@ -955,5 +1033,14 @@ app.whenReady().then(() => {
   }
 
   // Load user settings
+  loadStoredZoom()
+
+  // Covers the user changing Windows display scaling while the app is running
+  screen.on("display-metrics-changed", (_event, _display, changedMetrics) => {
+    if (changedMetrics.includes("scaleFactor")) {
+      applyZoom(win)
+    }
+  })
+
   createWindow()
 })
