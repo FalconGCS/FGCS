@@ -78,6 +78,32 @@ const tailwindColors = resolveConfig(tailwindConfig).theme.colors
 const coordsFractionDigits = 7
 const resizeTableHeightPadding = 20 // To account for the handle height and some padding
 
+const BOTTOM_BAR_HEIGHT_STORAGE_KEY = "missionsBottomBarHeight"
+const DEFAULT_BOTTOM_BAR_HEIGHT = 300
+const MIN_BOTTOM_BAR_HEIGHT = 100
+const MIN_MAP_HEIGHT = 150
+
+function getMaxBottomBarHeight() {
+  return Math.max(MIN_BOTTOM_BAR_HEIGHT, window.innerHeight - MIN_MAP_HEIGHT)
+}
+
+function clampBottomBarHeight(height) {
+  return Math.min(
+    Math.max(height, MIN_BOTTOM_BAR_HEIGHT),
+    getMaxBottomBarHeight(),
+  )
+}
+
+function readStoredBottomBarHeight() {
+  const storedHeight = localStorage.getItem(BOTTOM_BAR_HEIGHT_STORAGE_KEY)
+  if (storedHeight === null) return DEFAULT_BOTTOM_BAR_HEIGHT
+
+  const parsedHeight = Number(storedHeight)
+  if (!Number.isFinite(parsedHeight)) return DEFAULT_BOTTOM_BAR_HEIGHT
+
+  return clampBottomBarHeight(parsedHeight)
+}
+
 function isInvalidInputNumber(value) {
   return value === "" || value === null || isNaN(Number(value))
 }
@@ -118,7 +144,15 @@ export default function Missions() {
   // Need to keep a reference to the active tab to avoid stale closures
   const activeTabRef = useRef(activeTab)
   const tabsListRef = useRef(null)
-  const [tableSectionHeight, setTableSectionHeight] = useState(300)
+  const [bottomBarHeight, setBottomBarHeight] = useState(
+    readStoredBottomBarHeight,
+  )
+  const [maxBottomBarHeight, setMaxBottomBarHeight] = useState(
+    getMaxBottomBarHeight,
+  )
+  const [tableSectionHeight, setTableSectionHeight] = useState(
+    () => readStoredBottomBarHeight() - resizeTableHeightPadding,
+  )
 
   // Modal for mission progress
   const [missionProgressModalTitle, setMissionProgressModalTitle] = useState(
@@ -180,10 +214,23 @@ export default function Missions() {
     if (tabsListRef.current) {
       // Set initial height of the table section when component mounts
       setTableSectionHeight(
-        300 - tabsListRef.current.clientHeight - resizeTableHeightPadding,
+        bottomBarHeight -
+          tabsListRef.current.clientHeight -
+          resizeTableHeightPadding,
       )
     }
   }, [tabsListRef.current])
+
+  useEffect(() => {
+    function handleWindowResize() {
+      const maxHeight = getMaxBottomBarHeight()
+      setMaxBottomBarHeight(maxHeight)
+      setBottomBarHeight((currentHeight) => Math.min(currentHeight, maxHeight))
+    }
+
+    window.addEventListener("resize", handleWindowResize)
+    return () => window.removeEventListener("resize", handleWindowResize)
+  }, [])
 
   // Send some messages when file is loaded
   useEffect(() => {
@@ -649,20 +696,26 @@ export default function Missions() {
             {/* Resizable Bottom Bar */}
             <ResizableBox
               width={Infinity}
-              height={300}
-              minConstraints={[Infinity, 100]}
-              maxConstraints={[Infinity, 400]}
+              height={bottomBarHeight}
+              minConstraints={[Infinity, MIN_BOTTOM_BAR_HEIGHT]}
+              maxConstraints={[Infinity, maxBottomBarHeight]}
               resizeHandles={["n"]}
               axis="y"
               handle={
                 <div className="w-full h-2 bg-falcongrey-900 hover:bg-falconred-500 cursor-row-resize absolute top-0 left-0 z-10"></div>
               }
               className="relative bg-falcongrey-800 overflow-y-auto"
+              onResize={(_, { size }) => setBottomBarHeight(size.height)}
               onResizeStop={(_, { size }) => {
+                setBottomBarHeight(size.height)
                 setTableSectionHeight(
                   size.height -
                     tabsListRef.current.clientHeight -
                     resizeTableHeightPadding,
+                )
+                localStorage.setItem(
+                  BOTTOM_BAR_HEIGHT_STORAGE_KEY,
+                  String(size.height),
                 )
               }}
             >
