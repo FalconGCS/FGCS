@@ -16,7 +16,7 @@ import {
   IconRowInsertBottom,
   IconTrash,
 } from "@tabler/icons-react"
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { coordToInt, intToCoord } from "../../helpers/dataFormatters"
 import {
   COMMONLY_USED_MISSION_TABLE_LABELS,
@@ -33,7 +33,7 @@ import {
   removeDrawingItem,
   reorderDrawingItem,
   selectDrawingMissionItemByIdx,
-  selectHoveredMissionItemSeq,
+  selectIsMissionItemHovered,
   setHoveredMissionItemSeq,
   setSelectedMissionItemId,
   updateDrawingItem,
@@ -109,8 +109,11 @@ export default function MissionItemsTableRow({ missionItemIndex, rowMetrics }) {
   const missionItem = useSelector(
     selectDrawingMissionItemByIdx(missionItemIndex),
   )
-  const hoveredMissionItemSeq = useSelector(selectHoveredMissionItemSeq)
-  const isHovered = hoveredMissionItemSeq === missionItem.seq
+  const selectIsHovered = useMemo(
+    () => selectIsMissionItemHovered(missionItem.seq),
+    [missionItem.seq],
+  )
+  const isHovered = useSelector(selectIsHovered)
   const rowRef = useRef(null)
 
   /*

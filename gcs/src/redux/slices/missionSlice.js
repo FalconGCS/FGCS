@@ -609,6 +609,12 @@ const missionInfoSlice = createSlice({
   },
 })
 
+export const selectIsMissionItemHovered = (seq) =>
+  createSelector(
+    [missionInfoSlice.selectors.selectHoveredMissionItemSeq],
+    (hoveredMissionItemSeq) => hoveredMissionItemSeq === seq,
+  )
+
 export const selectDrawingMissionItemByIdx = (index) =>
   createSelector(
     [missionInfoSlice.selectors.selectDrawingMissionItems],

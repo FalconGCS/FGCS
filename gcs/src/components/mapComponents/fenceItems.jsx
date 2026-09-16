@@ -213,7 +213,7 @@ export default function FenceItems({ fenceItems }) {
           type: "FeatureCollection",
           features: fenceCircleItems.map((item) =>
             circle([intToCoord(item.y), intToCoord(item.x)], item.param1, {
-              steps: 64, // Number of points to create the circle
+              steps: 32, // Number of points to create the circle
               units: "meters", // Units for the radius
               properties: {
                 color:
