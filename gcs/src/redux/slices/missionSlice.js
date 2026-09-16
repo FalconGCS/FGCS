@@ -326,6 +326,11 @@ const missionInfoSlice = createSlice({
     },
     setVehicleWaypointRadius: (state, action) => {
       state.vehicleWaypointRadius = action.payload
+
+      const radius = Number(action.payload?.radius)
+      if (Number.isFinite(radius) && radius > 0) {
+        state.acceptanceRadius = radius
+      }
     },
     createNewSpecificMissionItem: (state, action) => {
       const { x, y, z, command } = action.payload
