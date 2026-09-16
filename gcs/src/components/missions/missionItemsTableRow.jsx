@@ -16,6 +16,7 @@ import {
   IconRowInsertBottom,
   IconTrash,
 } from "@tabler/icons-react"
+import { useEffect, useRef } from "react"
 import { coordToInt, intToCoord } from "../../helpers/dataFormatters"
 import {
   COMMONLY_USED_MISSION_TABLE_LABELS,
@@ -67,6 +68,41 @@ function parseCoordinateInput(value) {
   return numericValue === null ? 0 : numericValue
 }
 
+function getScrollParent(element) {
+  let parent = element.parentElement
+
+  while (parent) {
+    const { overflowY } = window.getComputedStyle(parent)
+    if (
+      (overflowY === "auto" || overflowY === "scroll") &&
+      parent.scrollHeight > parent.clientHeight
+    ) {
+      return parent
+    }
+
+    parent = parent.parentElement
+  }
+
+  return null
+}
+
+function scrollRowIntoView(row) {
+  const scrollParent = getScrollParent(row)
+  if (scrollParent === null) return
+
+  const rowRect = row.getBoundingClientRect()
+  const scrollParentRect = scrollParent.getBoundingClientRect()
+  const headerHeight =
+    scrollParent.querySelector("thead")?.getBoundingClientRect().height ?? 0
+  const visibleTop = scrollParentRect.top + headerHeight
+
+  if (rowRect.top < visibleTop) {
+    scrollParent.scrollTop -= visibleTop - rowRect.top
+  } else if (rowRect.bottom > scrollParentRect.bottom) {
+    scrollParent.scrollTop += rowRect.bottom - scrollParentRect.bottom
+  }
+}
+
 export default function MissionItemsTableRow({ missionItemIndex, rowMetrics }) {
   const dispatch = useDispatch()
   const aircraftType = useSelector(selectAircraftType)
@@ -75,6 +111,22 @@ export default function MissionItemsTableRow({ missionItemIndex, rowMetrics }) {
   )
   const hoveredMissionItemSeq = useSelector(selectHoveredMissionItemSeq)
   const isHovered = hoveredMissionItemSeq === missionItem.seq
+  const rowRef = useRef(null)
+
+  /*
+    Bring the row into view when its marker is hovered on the map, so that the
+    two sides of the screen point at the same waypoint.
+
+    The table sets the same hover state when the pointer is over a row, which
+    would scroll the table under the pointer. A row the pointer is actually over
+    was hovered from here rather than from the map, so it is left alone.
+  */
+  useEffect(() => {
+    if (!isHovered || rowRef.current === null) return
+    if (rowRef.current.matches(":hover")) return
+
+    scrollRowIntoView(rowRef.current)
+  }, [isHovered])
 
   // Commonly used section
   const commonlyUsedTag = "-com-used"
@@ -130,6 +182,7 @@ export default function MissionItemsTableRow({ missionItemIndex, rowMetrics }) {
 
   return (
     <TableTr
+      ref={rowRef}
       onMouseEnter={() => dispatch(setHoveredMissionItemSeq(missionItem.seq))}
       onMouseLeave={() => dispatch(setHoveredMissionItemSeq(null))}
       onClick={() => dispatch(setSelectedMissionItemId(missionItem.id))}
