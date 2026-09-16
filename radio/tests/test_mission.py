@@ -605,6 +605,68 @@ def test_exportMissionToFile_rallyExportSuccess(
         assert f.read() == f_expected.read()
 
 
+@pytest.mark.usefixtures("delete_export_files")
+@pytest.mark.usefixtures("upload_default_mission")
+def test_exportMissionToFile_succeedsAfterSocketReconnect(
+    socketio_client: SocketIOTestClient, droneStatus
+):
+    """
+    A socket reconnect resets droneStatus.state to None, and nothing re-sends it
+    until the user navigates pages. Exporting must still work, and must reply on
+    export_mission_result rather than silently erroring on params_error.
+    """
+    droneStatus.state = "missions"
+    export_file_path = os.path.join(MISSION_FILES_PATH, "exported_mission.txt")
+
+    # Get current mission items before the simulated reconnect
+    socketio_client.emit("get_current_mission", {"type": "mission"})
+    result = socketio_client.get_received()[-1]
+    items = result["args"][0]["items"]
+
+    # Simulate the state the backend is left in after a socket reconnect
+    droneStatus.state = None
+
+    socketio_client.emit(
+        "export_mission_to_file",
+        {"type": "mission", "file_path": export_file_path, "items": items},
+    )
+    export_result = socketio_client.get_received()[-1]
+
+    assert export_result["name"] == "export_mission_result"
+    assert export_result["args"][0] == {
+        "success": True,
+        "message": f"Waypoint file saved 8 points successfully to {export_file_path}",
+    }
+    assert os.path.exists(export_file_path)
+
+
+def test_importMissionFromFile_succeedsAfterSocketReconnect(
+    socketio_client: SocketIOTestClient, droneStatus
+):
+    """
+    Importing must survive the None state left behind by a socket reconnect, for
+    the same reason as the export case above.
+    """
+    droneStatus.state = None
+    import_file_path = os.path.join(MISSION_FILES_PATH, "default_mission.txt")
+    with open(
+        os.path.join(
+            MISSION_FILES_PATH,
+            "test_importMissionFromFile_missionImportSuccess_result.json",
+        ),
+        "r",
+    ) as f:
+        result_data = json.load(f)
+
+    socketio_client.emit(
+        "import_mission_from_file", {"type": "mission", "file_path": import_file_path}
+    )
+    result = socketio_client.get_received()[-1]
+
+    assert result["name"] == "import_mission_result"
+    assert result["args"][0] == result_data
+
+
 def test_exportMissionToFile_noWaypoints(
     socketio_client: SocketIOTestClient, droneStatus
 ):
