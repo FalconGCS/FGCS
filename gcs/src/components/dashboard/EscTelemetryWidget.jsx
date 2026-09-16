@@ -1,7 +1,6 @@
 /*
   Floating ESC telemetry widget (row-positioned like VideoWidget)
 */
-import { useMemo, useState } from "react"
 import { ActionIcon, NumberInput, Popover, Stack, Text } from "@mantine/core"
 import {
   IconBolt,
@@ -9,15 +8,17 @@ import {
   IconMinus,
   IconSettings,
 } from "@tabler/icons-react"
+import { useMemo, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
 import GetOutsideVisibilityColor from "../../helpers/outsideVisibility"
-import { selectEscTelemetry } from "../../redux/slices/droneInfoSlice"
 import {
   selectEscTelemetryMaximised,
   selectEscTelemetryThresholds,
+  selectOutsideVisibility,
   setEscTelemetryMaximised,
   setEscTelemetryThresholds,
 } from "../../redux/slices/droneConnectionSlice"
+import { selectEscTelemetry } from "../../redux/slices/droneInfoSlice"
 
 const DEFAULT_ESC_THRESHOLDS = {
   temperature: {
@@ -26,6 +27,16 @@ const DEFAULT_ESC_THRESHOLDS = {
     higherIsBetter: false,
   },
 }
+
+const OUTSIDE_VISIBILITY_SCALE = 1.5
+
+// Base (scale = 1) sizes in pixels, everything in a tile scales from these
+const BASE_FONT_SIZE = 14
+const BASE_ICON_SIZE = 16
+const BASE_TILE_WIDTH = 104
+const MAX_COLUMNS = 4
+const MAX_VISIBLE_ROWS = 4
+const TILE_GAP = 8
 
 function fmt(value, decimals = 0) {
   if (value === null || value === undefined) return "—"
@@ -65,38 +76,37 @@ function getTemperatureThresholdColor(value, config) {
   return "text-green-400"
 }
 
-function EscTile({ esc, thresholds }) {
+function EscTile({ esc, thresholds, fontSize }) {
   const temperatureClass = getTemperatureThresholdColor(
     esc.temperature,
     thresholds.temperature,
   )
 
   return (
-    <div className="rounded-md border border-falcongrey-700 bg-falcongrey-900 p-2">
+    <div
+      className="rounded-md border border-falcongrey-700 bg-falcongrey-900 p-2"
+      style={{ fontSize: `${fontSize}px`, lineHeight: 1.35 }}
+    >
       <div className="flex flex-row items-center justify-between mb-1">
-        <div className="text-slate-200 text-xs font-semibold">
-          ESC {esc.escId}
-        </div>
+        <div className="text-slate-200 font-semibold">ESC {esc.escId}</div>
       </div>
 
       <div className="flex flex-col gap-y-0.5">
-        <div className="flex flex-row items-center justify-between">
-          <div className="text-slate-500 text-xs">RPM</div>
-          <div className="text-xs text-slate-200 tabular-nums">
-            {fmt(esc.rpm, 0)}
-          </div>
+        <div className="flex flex-row items-center justify-between gap-x-2">
+          <div className="text-slate-500">RPM</div>
+          <div className="text-slate-200 tabular-nums">{fmt(esc.rpm, 0)}</div>
         </div>
 
-        <div className="flex flex-row items-center justify-between">
-          <div className="text-slate-500 text-xs">A</div>
-          <div className="text-xs text-slate-200 tabular-nums">
+        <div className="flex flex-row items-center justify-between gap-x-2">
+          <div className="text-slate-500">A</div>
+          <div className="text-slate-200 tabular-nums">
             {fmt(esc.current, 2)}
           </div>
         </div>
 
-        <div className="flex flex-row items-center justify-between">
-          <div className="text-slate-500 text-xs">°C</div>
-          <div className={`text-xs tabular-nums ${temperatureClass}`}>
+        <div className="flex flex-row items-center justify-between gap-x-2">
+          <div className="text-slate-500">°C</div>
+          <div className={`tabular-nums ${temperatureClass}`}>
             {fmtTemp(esc.temperature)}
           </div>
         </div>
@@ -114,29 +124,37 @@ export default function EscTelemetryWidget() {
   const [settingsOpened, setSettingsOpened] = useState(false)
 
   const thresholds = useSelector(selectEscTelemetryThresholds)
+  const outsideVisibility = useSelector(selectOutsideVisibility)
 
-  const hasAnyData =
-    Array.isArray(escs) &&
-    escs.some(
-      (e) => e && (e.rpm != null || e.current != null || e.temperature != null),
-    )
+  const scale = outsideVisibility ? OUTSIDE_VISIBILITY_SCALE : 1
+
+  const hasAnyData = Array.isArray(escs) && escs.length > 0
+
+  const fontSize = Math.round(BASE_FONT_SIZE * scale)
+  const iconSize = Math.round(BASE_ICON_SIZE * scale)
 
   const dimensions = useMemo(() => {
-    const baseWidth = 350
-    const width = baseWidth
-
-    const cols = 4
     const count = Array.isArray(escs) ? escs.length : 0
-    const rows = Math.max(1, Math.ceil(Math.min(count, 8) / cols))
 
-    const tileH = 74
-    const gapH = 8
+    const cols = Math.min(MAX_COLUMNS, Math.max(1, count))
+    const rows = Math.max(1, Math.ceil(count / cols))
+    const visibleRows = Math.min(rows, MAX_VISIBLE_ROWS)
+
+    // Header row plus the three metric rows, tile padding and borders
+    const tileH = Math.round(4 * fontSize * 1.35 + 4 + 16 + 2)
+    const tileW = Math.round(BASE_TILE_WIDTH * scale)
+
     const paddingH = 32
 
-    const height = Math.round(rows * tileH + (rows - 1) * gapH + paddingH)
-
-    return { width, height }
-  }, [escs])
+    return {
+      cols,
+      tileW,
+      width: Math.max(350, cols * tileW + (cols - 1) * TILE_GAP + 16),
+      height: Math.round(
+        visibleRows * tileH + (visibleRows - 1) * TILE_GAP + paddingH,
+      ),
+    }
+  }, [escs, fontSize, scale])
 
   function updateThreshold(metric, field, value) {
     const numericValue = Number(value)
@@ -167,22 +185,28 @@ export default function EscTelemetryWidget() {
         <div className="p-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <IconBolt
-              size={16}
+              size={iconSize}
               className={hasAnyData ? "text-slate-200" : "text-slate-500"}
             />
-            <Text size="sm" className="truncate max-w-[150px]">
+            <Text
+              className="truncate"
+              style={{
+                fontSize: `${fontSize}px`,
+                maxWidth: `${150 * scale}px`,
+              }}
+            >
               {hasAnyData ? "ESC telemetry" : "No ESC telemetry"}
             </Text>
           </div>
 
           <ActionIcon
-            size="sm"
+            size={outsideVisibility ? "lg" : "sm"}
             variant="subtle"
             onClick={() => dispatch(setEscTelemetryMaximised(true))}
             className="text-slate-400 hover:text-slate-200"
             title="Maximise ESC widget"
           >
-            <IconMaximize size={16} />
+            <IconMaximize size={iconSize} />
           </ActionIcon>
         </div>
       </div>
@@ -191,22 +215,25 @@ export default function EscTelemetryWidget() {
 
   return (
     <div
-      className="min-w-[350px] rounded-md flex flex-col"
-      style={{ background: GetOutsideVisibilityColor() }}
+      className="rounded-md flex flex-col"
+      style={{
+        background: GetOutsideVisibilityColor(),
+        minWidth: `${dimensions.width + 16}px`,
+      }}
     >
       <div className="p-2 h-full flex flex-col">
         <div className="flex items-center justify-between mb-2">
-          <Text>ESC telemetry</Text>
+          <Text style={{ fontSize: `${fontSize}px` }}>ESC telemetry</Text>
 
           <div className="flex items-center gap-1">
             <ActionIcon
-              size="sm"
+              size={outsideVisibility ? "lg" : "sm"}
               variant="subtle"
               onClick={() => dispatch(setEscTelemetryMaximised(false))}
               className="text-slate-400 hover:text-slate-200"
               title="Minimise ESC widget"
             >
-              <IconMinus size={16} />
+              <IconMinus size={iconSize} />
             </ActionIcon>
 
             <Popover
@@ -219,13 +246,13 @@ export default function EscTelemetryWidget() {
             >
               <Popover.Target>
                 <ActionIcon
-                  size="sm"
+                  size={outsideVisibility ? "lg" : "sm"}
                   variant="subtle"
                   onClick={() => setSettingsOpened((o) => !o)}
                   className="text-slate-400 hover:text-slate-200"
                   title="ESC threshold settings"
                 >
-                  <IconSettings size={16} />
+                  <IconSettings size={iconSize} />
                 </ActionIcon>
               </Popover.Target>
 
@@ -279,14 +306,29 @@ export default function EscTelemetryWidget() {
         >
           {!hasAnyData ? (
             <div className="w-full h-full flex flex-col items-center justify-center text-center">
-              <IconBolt size={24} className="text-slate-500 mb-1" />
-              <Text size="sm">Waiting for ESC telemetry</Text>
+              <IconBolt
+                size={Math.round(24 * scale)}
+                className="text-slate-500 mb-1"
+              />
+              <Text style={{ fontSize: `${fontSize}px` }}>
+                Waiting for ESC telemetry
+              </Text>
             </div>
           ) : (
             <div className="w-full h-full overflow-auto p-2">
-              <div className="grid grid-cols-4 gap-2">
+              <div
+                className="grid gap-2"
+                style={{
+                  gridTemplateColumns: `repeat(${dimensions.cols}, minmax(${dimensions.tileW}px, 1fr))`,
+                }}
+              >
                 {escs.map((esc) => (
-                  <EscTile key={esc.escId} esc={esc} thresholds={thresholds} />
+                  <EscTile
+                    key={esc.escId}
+                    esc={esc}
+                    thresholds={thresholds}
+                    fontSize={fontSize}
+                  />
                 ))}
               </div>
             </div>
