@@ -27,6 +27,7 @@ import { useSettings } from "../../helpers/settings"
 // Other dashboard imports
 import ContextMenuItem from "../mapComponents/contextMenuItem"
 import ContextMenuSubMenuItem from "../mapComponents/contextMenuSubMenuItem"
+import useContextMenuPosition from "../mapComponents/useContextMenuPosition"
 import { DistanceMeasurementMarkers } from "../mapComponents/distanceMeasurement"
 import DroneMarker from "../mapComponents/droneMarker"
 import FenceItems from "../mapComponents/fenceItems"
@@ -124,7 +125,12 @@ function MapSectionNonMemo({
 
   const [filteredMissionItems, setFilteredMissionItems] = useState([])
 
-  const contextMenuRef = useRef()
+  const contextMenuRef = useRef(null)
+  const contextMenuPosition = useContextMenuPosition(
+    contextMenuRef,
+    contextMenuState.isOpen,
+    contextMenuState.position,
+  )
 
   const clipboard = useClipboard({ timeout: 500 })
 
@@ -168,20 +174,6 @@ function MapSectionNonMemo({
   useEffect(() => {
     setFilteredMissionItems(filterMissionItems(missionItems))
   }, [missionItems])
-
-  useEffect(() => {
-    if (contextMenuRef.current) {
-      const boundingRect = contextMenuRef.current.getBoundingClientRect()
-      dispatch(
-        updateContextMenuState({
-          menuSize: {
-            width: Math.round(boundingRect.width),
-            height: Math.round(boundingRect.height),
-          },
-        }),
-      )
-    }
-  }, [contextMenuRef.current])
 
   useEffect(() => {
     // center map on home point only on first instance of home point being
@@ -335,17 +327,6 @@ function MapSectionNonMemo({
         attributionControl={false}
         dragRotate={false}
         touchRotate={false}
-        onLoad={(e) => {
-          const canvas = e.target.getCanvas()
-          dispatch(
-            updateContextMenuState({
-              canvasSize: {
-                width: canvas.clientWidth,
-                height: canvas.clientHeight,
-              },
-            }),
-          )
-        }}
         onMoveEnd={(newViewState) =>
           setInitialViewState({
             latitude: newViewState.viewState.latitude,
@@ -482,8 +463,8 @@ function MapSectionNonMemo({
             ref={contextMenuRef}
             className="absolute bg-falcongrey-700 rounded-md p-1 z-20"
             style={{
-              top: contextMenuState.position.y,
-              left: contextMenuState.position.x,
+              top: contextMenuPosition.y,
+              left: contextMenuPosition.x,
             }}
           >
             <ContextMenuItem
