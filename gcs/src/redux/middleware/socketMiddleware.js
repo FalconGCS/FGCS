@@ -13,6 +13,7 @@ import {
   emitConnectToDrone,
   emitGetComPorts,
   emitIsConnectedToDrone,
+  emitSetState,
   setComPorts,
   setConnected,
   setConnectedToSimulator,
@@ -33,14 +34,14 @@ import {
 } from "../slices/simulationParamsSlice"
 
 // socket factory
+import { CHECKLIST_AUTO_BINDINGS } from "../../helpers/checklistAutoBindings"
 import { dataFormatters } from "../../helpers/dataFormatters.js"
-import { readGcsSystemIdSync } from "../../helpers/gcsSystemId.js"
 import { isGlobalFrameHomeCommand } from "../../helpers/filterMissions.js"
+import { readGcsSystemIdSync } from "../../helpers/gcsSystemId.js"
 import {
   EKF_STATUS_WARNING_LEVEL,
   FRAME_CLASS_MAP,
 } from "../../helpers/mavlinkConstants.js"
-import { CHECKLIST_AUTO_BINDINGS } from "../../helpers/checklistAutoBindings"
 import {
   closeLoadingNotification,
   redColor,
@@ -50,6 +51,7 @@ import {
   showWarningNotification,
 } from "../../helpers/notification.js"
 import SocketFactory from "../../helpers/socket"
+import { setChecklistAutoBindingChecked } from "../slices/checklistSlice"
 import {
   emitGetFlightModeConfig,
   emitGetGripperConfig,
@@ -155,7 +157,6 @@ import {
   updateParamValue,
 } from "../slices/paramsSlice.js"
 import { pushMessage } from "../slices/statusTextSlice.js"
-import { setChecklistAutoBindingChecked } from "../slices/checklistSlice"
 import { handleEmitters } from "./emitters.js"
 
 const SocketEvents = Object.freeze({
@@ -421,6 +422,13 @@ const socketMiddleware = (store) => {
           console.log(`Connected to socket from redux, ${socket.socket.id}`)
           store.dispatch(socketConnected())
           store.dispatch(emitIsConnectedToDrone())
+
+          // The backend resets droneStatus.state to None on every socket
+          // disconnect, and nothing else re-sends it until the user navigates
+          // to a different page
+          store.dispatch(
+            emitSetState(store.getState().droneConnection.currentPage),
+          )
         })
 
         socket.socket.on(SocketEvents.Disconnect, () => {
@@ -880,6 +888,16 @@ const socketMiddleware = (store) => {
               : showErrorNotification(msg.message)
           },
         )
+
+        // Registered here rather than on drone connection: the backend sends
+        // params_error for screen-state rejections that can happen with no
+        // drone connected
+        socket.socket.on(ParamSpecificSocketEvents.onParamError, (msg) => {
+          showErrorNotification(msg.message)
+          store.dispatch(setFetchingVars(false))
+          store.dispatch(resetParamsWriteProgressData())
+          store.dispatch(setParamsWriteProgressModalOpen(false))
+        })
       }
     }
 
@@ -1039,13 +1057,6 @@ const socketMiddleware = (store) => {
             store.dispatch(setFetchingVars(true))
             store.dispatch(emitRefreshParams())
           }
-        })
-
-        socket.socket.on(ParamSpecificSocketEvents.onParamError, (msg) => {
-          showErrorNotification(msg.message)
-          store.dispatch(setFetchingVars(false))
-          store.dispatch(resetParamsWriteProgressData())
-          store.dispatch(setParamsWriteProgressModalOpen(false))
         })
 
         socket.socket.on(
@@ -1668,7 +1679,9 @@ const socketMiddleware = (store) => {
         )
         Object.values(ParamSpecificSocketEvents)
           .filter(
-            (event) => event !== ParamSpecificSocketEvents.onRebootAutopilot,
+            (event) =>
+              event !== ParamSpecificSocketEvents.onRebootAutopilot &&
+              event !== ParamSpecificSocketEvents.onParamError,
           )
           .map((event) => socket.socket.off(event))
         Object.values(MissionSpecificSocketEvents)

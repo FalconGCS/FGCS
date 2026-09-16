@@ -184,16 +184,6 @@ def writeCurrentMission(data: WriteCurrentMissionType) -> None:
 
 @socketio.on("import_mission_from_file")
 def importMissionFromFile(data: ImportMissionFileType) -> None:
-    if droneStatus.state != "missions":
-        socketio.emit(
-            "params_error",
-            {
-                "message": "You must be on the missions screen to import a mission from a file."
-            },
-        )
-        logger.debug(f"Current state: {droneStatus.state}")
-        return
-
     mission_type = data.get("type")
     mission_type_array = ["mission", "fence", "rally"]
 
@@ -238,16 +228,6 @@ def importMissionFromFile(data: ImportMissionFileType) -> None:
 
 @socketio.on("export_mission_to_file")
 def exportMissionToFile(data: ExportMissionFileType) -> None:
-    if droneStatus.state != "missions":
-        socketio.emit(
-            "params_error",
-            {
-                "message": "You must be on the missions screen to export a mission to a file."
-            },
-        )
-        logger.debug(f"Current state: {droneStatus.state}")
-        return
-
     mission_type = data.get("type")
     mission_type_array = ["mission", "fence", "rally"]
 
