@@ -4,7 +4,7 @@
   items which should not be displayed on the map as markers or not have lines
   connecting them.
 */
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
 import {
   selectConnectedToDrone,
@@ -43,7 +43,7 @@ import MidpointInsertButton from "./midpointInsertButton"
 
 // Tailwind styling
 import { circle, midpoint, point } from "@turf/turf"
-import { Layer, Source } from "react-map-gl"
+import { Layer, Source, useMap } from "react-map-gl"
 import resolveConfig from "tailwindcss/resolveConfig"
 import tailwindConfig from "../../../tailwind.config"
 
@@ -67,6 +67,33 @@ function getMidpointCoordinates(startItem, endItem) {
     point(missionItemToCoord(startItem)),
     point(missionItemToCoord(endItem)),
   ).geometry.coordinates
+}
+
+const INSERTION_BUTTON_MAX_DISTANCE = 60
+
+// The shortest distance from a point to a line segment, all in screen pixels
+function getDistanceToSegment(pointer, start, end) {
+  const segmentX = end.x - start.x
+  const segmentY = end.y - start.y
+  const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY
+
+  if (segmentLengthSquared === 0) {
+    return Math.hypot(pointer.x - start.x, pointer.y - start.y)
+  }
+
+  const position = Math.max(
+    0,
+    Math.min(
+      1,
+      ((pointer.x - start.x) * segmentX + (pointer.y - start.y) * segmentY) /
+        segmentLengthSquared,
+    ),
+  )
+
+  return Math.hypot(
+    pointer.x - (start.x + position * segmentX),
+    pointer.y - (start.y + position * segmentY),
+  )
 }
 
 /*
@@ -128,6 +155,8 @@ function getListOfLineCoordinates(
 
 export default function MissionItems({ missionItems }) {
   const dispatch = useDispatch()
+  const { current: mapRef } = useMap()
+  const [nearestInsertionId, setNearestInsertionId] = useState(null)
   const currentPage = useSelector(selectCurrentPage)
   const editable =
     useSelector(selectActiveTab) === "mission" && currentPage === "missions"
@@ -209,7 +238,7 @@ export default function MissionItems({ missionItems }) {
         if (radius === null) return null
 
         return circle(missionItemToCoord(item), radius, {
-          steps: 64,
+          steps: 32,
           units: "meters",
         })
       })
@@ -223,7 +252,7 @@ export default function MissionItems({ missionItems }) {
         if (radius === null) return null
 
         return circle(missionItemToCoord(item), radius, {
-          steps: 64,
+          steps: 32,
           units: "meters",
         })
       })
@@ -258,11 +287,80 @@ export default function MissionItems({ missionItems }) {
           afterId: startItem.id,
           lat: midpointCoords[1],
           lon: midpointCoords[0],
+          startCoord: missionItemToCoord(startItem),
+          endCoord: missionItemToCoord(endItem),
           tooltipText: `Insert waypoint between ${startItem.seq} and ${endItem.seq}`,
         }
       })
       .filter(Boolean)
   }, [editable, missionPathItems])
+
+  useEffect(() => {
+    if (!editable || mapRef === undefined || insertionMidpoints.length === 0) {
+      setNearestInsertionId(null)
+      return
+    }
+
+    const map = mapRef.getMap()
+    const mapContainer = map.getContainer()
+    let animationFrame = null
+    let pointerPosition = null
+
+    function updateNearestInsertion() {
+      animationFrame = null
+      if (pointerPosition === null) return
+
+      if (map.isMoving()) {
+        setNearestInsertionId(null)
+        return
+      }
+
+      let nearestId = null
+      let nearestDistance = INSERTION_BUTTON_MAX_DISTANCE
+
+      for (const insertionMidpoint of insertionMidpoints) {
+        const distance = getDistanceToSegment(
+          pointerPosition,
+          map.project(insertionMidpoint.startCoord),
+          map.project(insertionMidpoint.endCoord),
+        )
+
+        if (distance < nearestDistance) {
+          nearestDistance = distance
+          nearestId = insertionMidpoint.afterId
+        }
+      }
+
+      setNearestInsertionId((currentId) =>
+        currentId === nearestId ? currentId : nearestId,
+      )
+    }
+
+    function handleMouseMove(e) {
+      pointerPosition = e.point
+      if (animationFrame === null) {
+        animationFrame = requestAnimationFrame(updateNearestInsertion)
+      }
+    }
+
+    function handleMouseLeave() {
+      setNearestInsertionId(null)
+    }
+
+    map.on("mousemove", handleMouseMove)
+    mapContainer.addEventListener("mouseleave", handleMouseLeave)
+
+    return () => {
+      map.off("mousemove", handleMouseMove)
+      mapContainer.removeEventListener("mouseleave", handleMouseLeave)
+      if (animationFrame !== null) cancelAnimationFrame(animationFrame)
+    }
+  }, [editable, mapRef, insertionMidpoints])
+
+  const nearestInsertionMidpoint =
+    insertionMidpoints.find(
+      (insertionMidpoint) => insertionMidpoint.afterId === nearestInsertionId,
+    ) ?? null
 
   return (
     <>
@@ -305,10 +403,10 @@ export default function MissionItems({ missionItems }) {
       </Source>
 
       {/* Show mission item LABELS */}
-      {displayedMissionItems.map((item, index) => {
+      {displayedMissionItems.map((item) => {
         return (
           <MarkerPin
-            key={index}
+            key={item.id ?? item.seq}
             id={item.id}
             lat={intToCoord(item.x)}
             lon={intToCoord(item.y)}
@@ -325,16 +423,16 @@ export default function MissionItems({ missionItems }) {
         )
       })}
 
-      {insertionMidpoints.map((midpointItem) => (
+      {nearestInsertionMidpoint !== null && (
         <MidpointInsertButton
-          key={midpointItem.afterId}
-          lat={midpointItem.lat}
-          lon={midpointItem.lon}
+          key={nearestInsertionMidpoint.afterId}
+          lat={nearestInsertionMidpoint.lat}
+          lon={nearestInsertionMidpoint.lon}
           colour={tailwindColors.yellow[400]}
-          tooltipText={midpointItem.tooltipText}
+          tooltipText={nearestInsertionMidpoint.tooltipText}
           onClick={() => {
             const afterItem = missionPathItems.find(
-              (item) => item.id === midpointItem.afterId,
+              (item) => item.id === nearestInsertionMidpoint.afterId,
             )
 
             if (!afterItem) return
@@ -342,13 +440,13 @@ export default function MissionItems({ missionItems }) {
             dispatch(
               insertDrawingItemAfter({
                 afterId: afterItem.id,
-                x: coordToInt(midpointItem.lat),
-                y: coordToInt(midpointItem.lon),
+                x: coordToInt(nearestInsertionMidpoint.lat),
+                y: coordToInt(nearestInsertionMidpoint.lon),
               }),
             )
           }}
         />
-      ))}
+      )}
 
       {/* Show mission item outlines. Every branch and jump leg shares one
           source, so the map keeps a single layer however many the mission has */}

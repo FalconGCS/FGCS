@@ -2,15 +2,10 @@
   A small button rendered at a map midpoint for inserting a new point.
 */
 
+import { memo } from "react"
 import { Marker } from "react-map-gl"
 
-export default function MidpointInsertButton({
-  lat,
-  lon,
-  colour,
-  tooltipText,
-  onClick,
-}) {
+function MidpointInsertButton({ lat, lon, colour, tooltipText, onClick }) {
   return (
     <Marker latitude={lat} longitude={lon} offset={[0, 0]}>
       <div
@@ -38,3 +33,12 @@ export default function MidpointInsertButton({
     </Marker>
   )
 }
+
+export default memo(
+  MidpointInsertButton,
+  (prevProps, nextProps) =>
+    prevProps.lat === nextProps.lat &&
+    prevProps.lon === nextProps.lon &&
+    prevProps.colour === nextProps.colour &&
+    prevProps.tooltipText === nextProps.tooltipText,
+)
