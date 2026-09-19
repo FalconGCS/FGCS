@@ -94,6 +94,60 @@ def test_fetchAllParamsBlocking_success_sorts_and_updates_progress(droneStatus) 
         controller.params = old_params
 
 
+def test_fetchAllParamsBlocking_ignores_out_of_band_param_index(
+    droneStatus, monkeypatch
+) -> None:
+    """
+    The autopilot sends PARAM_VALUE messages that aren't part of the fetch with
+    an index of 65535, which must not be taken as the position in the fetch.
+    """
+
+    class FakeParamValue:
+        def __init__(self, param_id: str, param_index: int) -> None:
+            self.param_id = param_id
+            self.param_value = 1.0
+            self.param_type = 9
+            self.param_index = param_index
+            self.param_count = 4
+
+    controller = droneStatus.drone.paramsController
+    old_params = controller.params.copy()
+    progress_updates: list[dict[str, Any]] = []
+
+    messages = [
+        FakeParamValue("PARAM_0", 0),
+        FakeParamValue("RC_CHANGED", 65535),  # Not part of the enumerated fetch
+        FakeParamValue("PARAM_1", 1),
+        FakeParamValue("PARAM_2", 2),
+        FakeParamValue("PARAM_3", 3),
+    ]
+
+    def fake_wait_for_message(*args: Any, **kwargs: Any) -> Any:
+        return messages.pop(0) if messages else None
+
+    monkeypatch.setattr(droneStatus.drone, "wait_for_message", fake_wait_for_message)
+
+    try:
+        result = controller.fetchAllParamsBlocking(
+            timeout_secs=10,
+            progress_update_callback=lambda data: progress_updates.append(data),
+        )
+
+        assert result["success"] is True
+
+        # The out of band parameter must not look like the end of the fetch
+        assert progress_updates[1]["current_param_index"] == 0
+        assert progress_updates[1]["received_number_of_params"] == 2
+
+        received_counts = [
+            update["received_number_of_params"] for update in progress_updates
+        ]
+        assert received_counts == [1, 2, 3, 4, 5]
+        assert progress_updates[-1]["total_number_of_params"] == 4
+    finally:
+        controller.params = old_params
+
+
 def test_fetchAllParamsBlocking_cancelled_before_start(droneStatus) -> None:
     controller = droneStatus.drone.paramsController
 

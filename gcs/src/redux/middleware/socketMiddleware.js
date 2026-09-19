@@ -990,10 +990,17 @@ const socketMiddleware = (store) => {
         socket.socket.on(
           ParamSpecificSocketEvents.onParamRequestUpdate,
           (msg) => {
+            // Params can arrive out of order, so the number received is the
+            // best progress metric
+            const totalParams = Math.max(msg.total_number_of_params ?? 0, 1)
+            const receivedParams = Math.min(
+              msg.received_number_of_params ?? 0,
+              totalParams,
+            )
+
             store.dispatch(
               setFetchingVarsProgress({
-                progress:
-                  (msg.current_param_index / msg.total_number_of_params) * 100,
+                progress: (receivedParams / totalParams) * 100,
                 param_id: msg.current_param_id,
               }),
             )

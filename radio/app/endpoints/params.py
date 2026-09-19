@@ -101,18 +101,17 @@ def refresh_params() -> None:
 
     params_controller = drone.paramsController
 
-    last_index_sent = -1
+    last_received_count_sent = 0
     last_progress_emit_time = 0.0
 
     def send_param_request_update(progress_data: dict) -> None:
-        nonlocal last_index_sent, last_progress_emit_time
-        current_param_index = progress_data.get("current_param_index", -1)
-        if current_param_index <= last_index_sent:
+        nonlocal last_received_count_sent, last_progress_emit_time
+        received_params = int(progress_data.get("received_number_of_params", 0))
+        if received_params <= last_received_count_sent:
             return
 
         total_params = max(int(progress_data.get("total_number_of_params", 0)), 1)
-        current_index = max(int(current_param_index) + 1, 1)
-        is_final_update = current_index >= total_params
+        is_final_update = received_params >= total_params
 
         now = time.monotonic()
         if (
@@ -122,7 +121,7 @@ def refresh_params() -> None:
             return
 
         socketio.emit("param_request_update", progress_data)
-        last_index_sent = current_param_index
+        last_received_count_sent = received_params
         last_progress_emit_time = now
 
     response = params_controller.fetchAllParamsBlocking(
