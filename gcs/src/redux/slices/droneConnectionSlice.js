@@ -6,6 +6,18 @@ export const ConnectionType = {
   Network: "network",
 }
 
+export const NetworkType = {
+  Tcp: "tcp",
+  UdpIn: "udpin",
+  UdpOut: "udpout",
+}
+
+export const defaultNetworkConnections = {
+  [NetworkType.Tcp]: { ip: "127.0.0.1", port: "5760" },
+  [NetworkType.UdpIn]: { ip: "127.0.0.1", port: "14550" },
+  [NetworkType.UdpOut]: { ip: "127.0.0.1", port: "14550" },
+}
+
 const initialState = {
   // drone connection status
   connecting: false,
@@ -31,9 +43,8 @@ const initialState = {
   selected_com_ports: null,
 
   // network parameters
-  network_type: "tcp", // local
-  ip: "127.0.0.1", // local
-  port: "5760", // local
+  network_type: NetworkType.Tcp, // local
+  network_connections: structuredClone(defaultNetworkConnections), // local
 
   forwardingAddress: "", // local
   isForwarding: false, // local
@@ -113,18 +124,36 @@ const droneConnectionSlice = createSlice({
       }
     },
     setNetworkType: (state, action) => {
-      if (action.payload !== state.network_type) {
+      if (
+        action.payload !== state.network_type &&
+        action.payload in state.network_connections
+      ) {
         state.network_type = action.payload
       }
     },
     setIp: (state, action) => {
-      if (action.payload !== state.ip) {
-        state.ip = action.payload
+      const connection = state.network_connections[state.network_type]
+      if (connection && action.payload !== connection.ip) {
+        connection.ip = action.payload
       }
     },
     setPort: (state, action) => {
-      if (action.payload !== state.port) {
-        state.port = action.payload
+      const connection = state.network_connections[state.network_type]
+      if (connection && action.payload !== connection.port) {
+        connection.port = action.payload
+      }
+    },
+    setNetworkConnections: (state, action) => {
+      for (const networkType of Object.keys(state.network_connections)) {
+        const persisted = action.payload?.[networkType]
+        if (!persisted || typeof persisted !== "object") continue
+
+        if (typeof persisted.ip === "string") {
+          state.network_connections[networkType].ip = persisted.ip
+        }
+        if (typeof persisted.port === "string") {
+          state.network_connections[networkType].port = persisted.port
+        }
       }
     },
     setConnectionModal: (state, action) => {
@@ -232,8 +261,11 @@ const droneConnectionSlice = createSlice({
     selectComPorts: (state) => state.com_ports,
     selectSelectedComPorts: (state) => state.selected_com_ports,
     selectNetworkType: (state) => state.network_type,
-    selectIp: (state) => state.ip,
-    selectPort: (state) => state.port,
+    selectNetworkConnections: (state) => state.network_connections,
+    selectIp: (state) =>
+      state.network_connections[state.network_type]?.ip ?? "",
+    selectPort: (state) =>
+      state.network_connections[state.network_type]?.port ?? "",
     selectConnectionModal: (state) => state.connection_modal,
     selectConnectionStatus: (state) => state.connection_status,
     selectForwardingAddress: (state) => state.forwardingAddress,
@@ -267,6 +299,7 @@ export const {
   setNetworkType,
   setIp,
   setPort,
+  setNetworkConnections,
   setConnectionModal,
   setConnectionStatus,
   setForwardingAddress,
@@ -315,6 +348,7 @@ export const {
   selectComPorts,
   selectSelectedComPorts,
   selectNetworkType,
+  selectNetworkConnections,
   selectIp,
   selectPort,
   selectConnectionModal,

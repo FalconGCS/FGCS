@@ -46,8 +46,12 @@ export default function ErrorBoundaryFallback({ error, resetErrorBoundary }) {
       },
       network: {
         protocol: connection.network_type || "unknown",
-        ip: connection.ip || "unknown",
-        port: connection.port || "unknown",
+        ip:
+          connection.network_connections?.[connection.network_type]?.ip ||
+          "unknown",
+        port:
+          connection.network_connections?.[connection.network_type]?.port ||
+          "unknown",
       },
       forwarding: {
         enabled: !!connection.isForwarding,
