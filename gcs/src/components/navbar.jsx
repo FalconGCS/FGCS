@@ -41,6 +41,7 @@ import {
   emitGetComPorts,
   emitStartForwarding,
   emitStopForwarding,
+  NetworkType,
   selectBaudrate,
   selectComPorts,
   selectConnectedToDrone,
@@ -144,14 +145,14 @@ export default function Navbar() {
         }),
       )
     } else if (type === ConnectionType.Network) {
-      if ((networkType !== "udpin" && ip === "") || port === "") {
+      if ((networkType !== NetworkType.UdpIn && ip === "") || port === "") {
         showErrorNotification("IP Address and Port cannot be empty")
         return
       }
 
       // UDP In creates a UDP socket that binds to a local port
       let filteredIp = ip
-      if (networkType === "udpin") {
+      if (networkType === NetworkType.UdpIn) {
         filteredIp = "0.0.0.0"
       }
 
@@ -281,12 +282,12 @@ export default function Navbar() {
                   value={networkType}
                   onChange={(value) => dispatch(setNetworkType(value))}
                   data={[
-                    { value: "tcp", label: "TCP" },
-                    { value: "udpin", label: "UDP In" },
-                    { value: "udpout", label: "UDP Out" },
+                    { value: NetworkType.Tcp, label: "TCP" },
+                    { value: NetworkType.UdpIn, label: "UDP In" },
+                    { value: NetworkType.UdpOut, label: "UDP Out" },
                   ]}
                 />
-                {networkType !== "udpin" && (
+                {networkType !== NetworkType.UdpIn && (
                   <TextInput
                     label="IP Address"
                     placeholder="127.0.0.1"

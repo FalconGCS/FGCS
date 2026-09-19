@@ -18,11 +18,10 @@ import droneConnectionSlice, {
   setBaudrate,
   setConnectionType,
   setForwardingAddress,
-  setIp,
   setIsForwarding,
+  setNetworkConnections,
   setNetworkType,
   setOutsideVisibility,
-  setPort,
   setSelectedComPorts,
   setStatusTextSize,
 } from "./slices/droneConnectionSlice"
@@ -95,15 +94,31 @@ if (networkType !== null) {
   store.dispatch(setNetworkType(networkType))
 }
 
-const ip = localStorage.getItem("ip")
-if (ip !== null) {
-  store.dispatch(setIp(ip))
+const NETWORK_CONNECTIONS_STORAGE_KEY = "networkConnections"
+
+function hydrateNetworkConnections() {
+  const savedNetworkConnections = localStorage.getItem(
+    NETWORK_CONNECTIONS_STORAGE_KEY,
+  )
+
+  if (savedNetworkConnections !== null) {
+    try {
+      const parsedNetworkConnections = JSON.parse(savedNetworkConnections)
+      if (
+        parsedNetworkConnections &&
+        typeof parsedNetworkConnections === "object"
+      ) {
+        store.dispatch(setNetworkConnections(parsedNetworkConnections))
+      }
+      return
+    } catch {
+      console.log("Failed to parse networkConnections from local storage.")
+      return
+    }
+  }
 }
 
-const port = localStorage.getItem("port")
-if (port !== null) {
-  store.dispatch(setPort(port))
-}
+hydrateNetworkConnections()
 
 const forwardingAddress = localStorage.getItem("forwardingAddress")
 if (forwardingAddress !== null) {
@@ -414,12 +429,14 @@ store.subscribe(() => {
     )
   }
 
-  if (typeof store_mut.droneConnection.ip === "string") {
-    updateLocalStorageIfChanged("ip", store_mut.droneConnection.ip)
-  }
-
-  if (typeof store_mut.droneConnection.port === "string") {
-    updateLocalStorageIfChanged("port", store_mut.droneConnection.port)
+  if (
+    store_mut.droneConnection.network_connections &&
+    typeof store_mut.droneConnection.network_connections === "object"
+  ) {
+    updateJSONLocalStorageIfChanged(
+      NETWORK_CONNECTIONS_STORAGE_KEY,
+      store_mut.droneConnection.network_connections,
+    )
   }
 
   if (typeof store_mut.droneConnection.forwardingAddress === "string") {
