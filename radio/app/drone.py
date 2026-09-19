@@ -423,7 +423,7 @@ class Drone:
 
     def sendParamFetchConnectionStatusUpdate(self, data: dict) -> None:
         total_params = max(int(data.get("total_number_of_params", 0)), 1)
-        current_index = max(int(data.get("current_param_index", 0)) + 1, 1)
+        current_index = max(int(data.get("received_number_of_params", 0)), 1)
         current_index = min(current_index, total_params)
         current_param_id = data.get("current_param_id", "")
 

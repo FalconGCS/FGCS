@@ -124,7 +124,10 @@ class ParamsController:
 
                 self.saveParam(msg.param_id, msg.param_value, msg.param_type)
 
-                self.current_param_index = msg.param_index
+                is_indexed_param = 0 <= msg.param_index < msg.param_count
+
+                if is_indexed_param:
+                    self.current_param_index = msg.param_index
                 self.current_param_id = msg.param_id
                 self.total_number_of_params = msg.param_count
 
@@ -134,10 +137,11 @@ class ParamsController:
                             "current_param_index": self.current_param_index,
                             "current_param_id": self.current_param_id,
                             "total_number_of_params": self.total_number_of_params,
+                            "received_number_of_params": len(self.params),
                         }
                     )
 
-                if msg.param_index == msg.param_count - 1:
+                if is_indexed_param and msg.param_index == msg.param_count - 1:
                     self.params = sorted(self.params, key=lambda k: k["param_id"])
                     self.drone.logger.info("Got all params")
                     return {

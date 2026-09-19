@@ -516,6 +516,7 @@ def test_refreshParams_alwaysFetchesAndEmitsProgress(
                     "current_param_index": 1,
                     "current_param_id": "TEST_PARAM",
                     "total_number_of_params": 2,
+                    "received_number_of_params": 2,
                 }
             )
 
