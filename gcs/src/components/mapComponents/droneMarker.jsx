@@ -23,7 +23,7 @@ import {
 } from "../../redux/slices/droneInfoSlice"
 const tailwindColors = resolveConfig(tailwindConfig).theme.colors
 
-export default function DroneMarker({ lat, lon, zoom = null }) {
+export default function DroneMarker({ lat, lon, zoom = null, stale = false }) {
   const heading = useSelector(selectHeading)
   const desiredBearing = useSelector(selectDesiredBearing)
   const gpsTrackHeading = useSelector(selectGpsTrackHeading)
@@ -41,12 +41,12 @@ export default function DroneMarker({ lat, lon, zoom = null }) {
       <Marker latitude={lat} longitude={lon} scale={0.1}>
         <img
           src={arrow}
-          className="w-6 h-6"
+          className={`w-6 h-6 ${stale ? "opacity-40 grayscale" : ""}`}
           style={{ transform: `rotate(${heading}deg)` }}
         />
       </Marker>
 
-      {heading !== null && (
+      {!stale && heading !== null && (
         <DrawLineCoordinates
           coordinates={calculateBearingLineEnd(heading)}
           colour={tailwindColors.blue[200]}
@@ -54,7 +54,7 @@ export default function DroneMarker({ lat, lon, zoom = null }) {
         />
       )}
 
-      {desiredBearing !== null && (
+      {!stale && desiredBearing !== null && (
         <DrawLineCoordinates
           coordinates={calculateBearingLineEnd(desiredBearing)}
           colour={tailwindColors.red[200]}
@@ -62,7 +62,7 @@ export default function DroneMarker({ lat, lon, zoom = null }) {
         />
       )}
 
-      {gpsTrackHeading !== null && (
+      {!stale && gpsTrackHeading !== null && (
         <DrawLineCoordinates
           coordinates={calculateBearingLineEnd(gpsTrackHeading)}
           colour={tailwindColors.green[200]}
