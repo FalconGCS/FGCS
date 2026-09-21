@@ -69,6 +69,10 @@ const paramsSlice = createSlice({
     toggleShowModifiedParams: (state) => {
       state.showModifiedParams = !state.showModifiedParams
     },
+    setShowModifiedParams: (state, action) => {
+      if (action.payload === state.showModifiedParams) return
+      state.showModifiedParams = action.payload
+    },
     appendModifiedParams: (state, action) => {
       for (let newParam of action.payload) {
         // If param already exists, update it instead of appending
@@ -130,6 +134,7 @@ const paramsSlice = createSlice({
       state.params = []
       state.shownParams = []
       state.modifiedParams = []
+      state.showModifiedParams = false
       state.rebootData = {}
       state.searchValue = ""
       state.rebootPromptModalOpen = false
@@ -224,6 +229,7 @@ export const {
   setFetchingParam,
   setParamSearchValue,
   toggleShowModifiedParams,
+  setShowModifiedParams,
   appendModifiedParams,
   updateParamValue,
   updateModifiedParamValue,

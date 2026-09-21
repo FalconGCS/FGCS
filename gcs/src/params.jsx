@@ -54,6 +54,7 @@ import {
   setModifiedParams,
   setParams,
   setPendingFetchAction,
+  setShowModifiedParams,
   setShownParams,
 } from "./redux/slices/paramsSlice.js"
 
@@ -146,6 +147,7 @@ export default function Params() {
     dispatch(setParams([]))
     dispatch(setModifiedParams([]))
     dispatch(setShownParams([]))
+    dispatch(setShowModifiedParams(false))
     dispatch(emitRefreshParams())
     dispatch(setFetchingVars(true))
     dispatch(setPendingFetchAction(null))
