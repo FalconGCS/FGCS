@@ -9,6 +9,9 @@ def getRcConfig() -> None:
     """
     Sends the RC config to the frontend, only works when the config page is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="get the RC config")
+
     if droneStatus.state != "config.rc":
         socketio.emit(
             "params_error",
@@ -16,9 +19,6 @@ def getRcConfig() -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="get the RC config")
 
     rc_params = droneStatus.drone.rcController.getConfig()
     rc_params["flight_modes"] = (
@@ -36,6 +36,9 @@ def setRcConfigParam(data: SetConfigParam) -> None:
     """
     Sets a RC config parameter on the drone.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="set a RC config parameter")
+
     if droneStatus.state != "config.rc":
         socketio.emit(
             "params_error",
@@ -45,9 +48,6 @@ def setRcConfigParam(data: SetConfigParam) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="set a RC config parameter")
 
     param_id = data.get("param_id", None)
     value = data.get("value", None)
@@ -80,6 +80,9 @@ def batchSetRcConfigParams(data: BatchSetConfigParams) -> None:
     """
     Sets multiple RC config parameters on the drone.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="set multiple RC config parameters")
+
     if droneStatus.state != "config.rc":
         socketio.emit(
             "params_error",
@@ -89,9 +92,6 @@ def batchSetRcConfigParams(data: BatchSetConfigParams) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="set multiple RC config parameters")
 
     params = data.get("params", [])
     if not params:

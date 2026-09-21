@@ -9,6 +9,9 @@ def getServoConfig() -> None:
     """
     Sends the servo config to the frontend, only works when the config page is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="get the servo config")
+
     if droneStatus.state != "config.servo":
         socketio.emit(
             "params_error",
@@ -18,9 +21,6 @@ def getServoConfig() -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="get the servo config")
 
     servo_config = droneStatus.drone.servoController.getConfig()
 
@@ -35,6 +35,9 @@ def setServoConfigParam(data: SetConfigParam) -> None:
     """
     Sets a servo config parameter on the drone.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="set a servo config parameter")
+
     if droneStatus.state != "config.servo":
         socketio.emit(
             "params_error",
@@ -44,9 +47,6 @@ def setServoConfigParam(data: SetConfigParam) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="set a servo config parameter")
 
     param_id = data.get("param_id", None)
     value = data.get("value", None)
@@ -79,6 +79,9 @@ def batchSetServoConfigParams(data: BatchSetConfigParams) -> None:
     """
     Sets multiple servo config parameters on the drone.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="set multiple servo config parameters")
+
     if droneStatus.state != "config.servo":
         socketio.emit(
             "params_error",
@@ -88,9 +91,6 @@ def batchSetServoConfigParams(data: BatchSetConfigParams) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="set multiple servo config parameters")
 
     params = data.get("params", [])
     if not params:

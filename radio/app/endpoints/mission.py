@@ -56,6 +56,9 @@ def getCurrentMission(data: CurrentMissionType) -> None:
     """
     Sends the current mission to the frontend, only works if dashboard or missions screen is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="get current mission")
+
     if droneStatus.state not in ["dashboard", "missions"]:
         socketio.emit(
             "params_error",
@@ -65,9 +68,6 @@ def getCurrentMission(data: CurrentMissionType) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="get current mission")
 
     mission_type = data.get("type")
     mission_type_array = ["mission", "fence", "rally"]
@@ -103,6 +103,9 @@ def getCurrentMissionAll() -> None:
     """
     Sends the current mission to the frontend, only works if dashboard or missions screen is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="get current mission")
+
     if droneStatus.state not in ["dashboard", "missions"]:
         socketio.emit(
             "params_error",
@@ -112,9 +115,6 @@ def getCurrentMissionAll() -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="get current mission")
 
     result = droneStatus.drone.missionController.getCurrentMissionAll()
 
@@ -142,6 +142,9 @@ def writeCurrentMission(data: WriteCurrentMissionType) -> None:
     """
     Writes the current mission to the drone, only works if missions screen is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="write current mission")
+
     if droneStatus.state != "missions":
         socketio.emit(
             "params_error",
@@ -151,9 +154,6 @@ def writeCurrentMission(data: WriteCurrentMissionType) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="write current mission")
 
     mission_type = data.get("type")
     mission_type_array = ["mission", "fence", "rally"]
@@ -267,6 +267,9 @@ def controlMission(data: ControlMissionType) -> None:
     """
     Controls the current mission based on the action, only works if dashboard screen is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="control mission")
+
     if droneStatus.state != "dashboard":
         socketio.emit(
             "params_error",
@@ -274,9 +277,6 @@ def controlMission(data: ControlMissionType) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="control mission")
 
     action = data.get("action", None)
 
@@ -314,6 +314,9 @@ def getWaypointRadius() -> None:
     Gets the waypoint acceptance radius in metres, only works if the missions screen
     is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="get waypoint radius")
+
     if droneStatus.state != "missions":
         socketio.emit(
             "params_error",
@@ -323,9 +326,6 @@ def getWaypointRadius() -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="get waypoint radius")
 
     result = droneStatus.drone.missionController.getWaypointRadius()
 
@@ -337,6 +337,9 @@ def setWaypointRadius(data: WaypointRadiusDataType) -> None:
     """
     Sets the waypoint acceptance radius, only works if the missions screen is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="set waypoint radius")
+
     if droneStatus.state != "missions":
         socketio.emit(
             "params_error",
@@ -346,9 +349,6 @@ def setWaypointRadius(data: WaypointRadiusDataType) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="set waypoint radius")
 
     requested_radius = data.get("radius", None)
     radius = coerceFiniteNumber(requested_radius)

@@ -60,16 +60,16 @@ def set_multiple_params(params_list: List[Any]) -> None:
     Args:
         params_list: The list of parameters to be setting from the client.
     """
+    drone = droneStatus.drone
+    if drone is None:
+        return
+
     if droneStatus.state != "params":
         socketio.emit(
             "params_error",
             {"message": "You must be on the params screen to save parameters."},
         )
         logger.debug(f"Current state: {droneStatus.state}")
-        return
-
-    drone = droneStatus.drone
-    if drone is None:
         return
 
     params_controller = drone.paramsController
@@ -87,16 +87,16 @@ def refresh_params() -> None:
     """
     Refresh all parameters
     """
+    drone = droneStatus.drone
+    if drone is None:
+        return
+
     if droneStatus.state != "params":
         socketio.emit(
             "params_error",
             {"message": "You must be on the params screen to refresh the parameters."},
         )
         logger.debug(f"Current state: {droneStatus.state}")
-        return
-
-    drone = droneStatus.drone
-    if drone is None:
         return
 
     params_controller = drone.paramsController
@@ -154,17 +154,17 @@ def export_params_to_file(data: ExportParamsFileType) -> None:
     Args:
         data: The data from the client containing the file path.
     """
+    drone = droneStatus.drone
+    if drone is None:
+        notConnectedError(action="export params to file")
+        return
+
     if droneStatus.state != "params":
         socketio.emit(
             "params_error",
             {"message": "You must be on the params screen to export parameters."},
         )
         logger.debug(f"Current state: {droneStatus.state}")
-        return
-
-    drone = droneStatus.drone
-    if drone is None:
-        notConnectedError(action="export params to file")
         return
 
     file_path = data.get("file_path", None)

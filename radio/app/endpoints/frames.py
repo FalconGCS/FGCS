@@ -9,6 +9,9 @@ def getFrameDetails() -> None:
     Sends the current frame class and frame type of the drone to the frontend. Only works when on the motor test panel of config page
     """
 
+    if not droneStatus.drone:
+        return notConnectedError(action="get frame config")
+
     if droneStatus.state != "config.motor_test":
         socketio.emit(
             "params_error",
@@ -18,9 +21,6 @@ def getFrameDetails() -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="get frame config")
 
     framesConfig = droneStatus.drone.frameController.getConfig()
 

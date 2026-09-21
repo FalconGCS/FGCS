@@ -19,6 +19,9 @@ def getFlightModeConfig() -> None:
     """
     Sends the flight mode config to the frontend, only works when the config page is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="get the flight mode config")
+
     if droneStatus.state != "config.flight_modes":
         socketio.emit(
             "params_error",
@@ -26,9 +29,6 @@ def getFlightModeConfig() -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="get the flight mode config")
 
     flight_modes_config = droneStatus.drone.flightModesController.getConfig()
 
@@ -46,6 +46,9 @@ def setFlightMode(data: SetFlightModeValueAndNumber) -> None:
     Args:
         data (SetFlightModeValueAndNumber): Contains the flight mode number and the flight mode to set to it
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="set the flight mode")
+
     if droneStatus.state != "config.flight_modes":
         socketio.emit(
             "params_error",
@@ -53,9 +56,6 @@ def setFlightMode(data: SetFlightModeValueAndNumber) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="set the flight mode")
 
     mode_number = data.get("mode_number", None)
     flight_mode = data.get("flight_mode", None)
@@ -79,6 +79,9 @@ def setFlightModeChannel(data: SetFlightModeChannelType) -> None:
     Args:
         data (SetFlightModeChannelType): Contains the flight mode channel to set
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="set the flight mode channel")
+
     if droneStatus.state != "config.flight_modes":
         socketio.emit(
             "params_error",
@@ -86,9 +89,6 @@ def setFlightModeChannel(data: SetFlightModeChannelType) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="set the flight mode channel")
 
     channel = data.get("channel", None)
 
@@ -112,6 +112,9 @@ def refreshFlightModeData() -> None:
     """
     Refreshes the flight mode data, only works when the config page is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="refresh the flight mode data")
+
     if droneStatus.state != "config.flight_modes":
         socketio.emit(
             "params_error",
@@ -119,9 +122,6 @@ def refreshFlightModeData() -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="refresh the flight mode data")
 
     droneStatus.drone.flightModesController.refreshData()
 
@@ -142,6 +142,9 @@ def setCurrentFlightMode(data: SetCurrentFlightModeType) -> None:
     Args:
         data (dict): A dictionary containing the flight mode to be set as an integer
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="set the current flight mode")
+
     if droneStatus.state != "dashboard":
         socketio.emit(
             "params_error",
@@ -151,9 +154,6 @@ def setCurrentFlightMode(data: SetCurrentFlightModeType) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="set the current flight mode")
 
     new_flight_mode = data.get("newFlightMode")
 

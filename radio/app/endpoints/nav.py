@@ -24,6 +24,9 @@ def getHomePosition() -> None:
     """
     Gets the home position of the drone, only works when the dashboard or missions page is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="get home position")
+
     if droneStatus.state not in ["dashboard", "missions"]:
         socketio.emit(
             "params_error",
@@ -33,9 +36,6 @@ def getHomePosition() -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="get home position")
 
     result = droneStatus.drone.navController.getHomePosition()
 
@@ -47,6 +47,9 @@ def takeoff(data: TakeoffDataType) -> None:
     """
     Commands the drone to takeoff, only works when the dashboard page is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="takeoff")
+
     if droneStatus.state != "dashboard":
         socketio.emit(
             "params_error",
@@ -54,9 +57,6 @@ def takeoff(data: TakeoffDataType) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="takeoff")
 
     alt = data.get("alt", None)
     if alt is None or alt < 0:
@@ -76,6 +76,9 @@ def land() -> None:
     """
     Commands the drone to land, only works when the dashboard page is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="land")
+
     if droneStatus.state != "dashboard":
         socketio.emit(
             "params_error",
@@ -83,9 +86,6 @@ def land() -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="land")
 
     result = droneStatus.drone.navController.land()
 
@@ -97,6 +97,9 @@ def reposition(data: RepositionDataType) -> None:
     """
     Commands the drone to reposition, only works when the dashboard page is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="reposition")
+
     if droneStatus.state != "dashboard":
         socketio.emit(
             "params_error",
@@ -104,9 +107,6 @@ def reposition(data: RepositionDataType) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="reposition")
 
     alt = data.get("alt", None)
     if alt is None or alt < 0:
@@ -136,6 +136,9 @@ def getLoiterRadius() -> None:
     """
     Gets the loiter radius of the drone, only works when the dashboard page is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="get loiter radius")
+
     if droneStatus.state not in ["dashboard"]:
         socketio.emit(
             "params_error",
@@ -145,9 +148,6 @@ def getLoiterRadius() -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="get loiter radius")
 
     result = droneStatus.drone.navController.getLoiterRadius()
 
@@ -159,6 +159,9 @@ def setLoiterRadius(data: LoiterRadiusDataType) -> None:
     """
     Sets the loiter radius of the drone, only works when the dashboard page is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="set loiter radius")
+
     if droneStatus.state != "dashboard":
         socketio.emit(
             "params_error",
@@ -168,9 +171,6 @@ def setLoiterRadius(data: LoiterRadiusDataType) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="set loiter radius")
 
     radius = data.get("radius", None)
     if radius is None or radius < 0:
