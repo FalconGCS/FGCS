@@ -47,6 +47,7 @@ import { useDispatch, useSelector } from "react-redux"
 import { getContainerPointFromEvent } from "../../helpers/pointer"
 import {
   deletePoiMarker,
+  selectConnectedToDrone,
   selectPoiMarkers,
 } from "../../redux/slices/droneConnectionSlice"
 import {
@@ -94,6 +95,7 @@ function MapSectionNonMemo({
   // Redux
   const dispatch = useDispatch()
   const gpsData = useSelector(selectGPS)
+  const connectedToDrone = useSelector(selectConnectedToDrone)
   const plannedHomePosition = useSelector(selectPlannedHomePosition)
   const flightModeString = useSelector(selectFlightModeString)
   const currentTab = useSelector(selectActiveTab)
@@ -381,6 +383,7 @@ function MapSectionNonMemo({
               lat={position.latitude}
               lon={position.longitude}
               zoom={initialViewState.zoom}
+              stale={!connectedToDrone}
             />
           )}
 

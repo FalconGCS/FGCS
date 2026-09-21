@@ -64,10 +64,10 @@ import { showInfoNotification } from "../../helpers/notification"
 import { getContainerPointFromEvent } from "../../helpers/pointer"
 import AddPoiMarkerModal from "../mapComponents/addPoiMarkerModal"
 import ContextMenuSubMenuItem from "../mapComponents/contextMenuSubMenuItem"
-import useContextMenuPosition from "../mapComponents/useContextMenuPosition"
 import DrawLineCoordinates from "../mapComponents/drawLineCoordinates"
 import KmlLayers from "../mapComponents/kmlLayers"
 import POIMarkersContainer from "../mapComponents/poiMarkersContainer"
+import useContextMenuPosition from "../mapComponents/useContextMenuPosition"
 const tailwindColors = resolveConfig(tailwindConfig).theme.colors
 
 const coordsFractionDigits = 7
@@ -143,7 +143,8 @@ function MapSectionNonMemo({ passedRef, onDragstart, mapId = "dashboard" }) {
 
   useEffect(() => {
     if (!connectedToDrone) {
-      setPosition(null)
+      // Leave the marker where it was so the last known position stays
+      // visible
       setFirstCenteredToDrone(false)
       return
     }
@@ -293,6 +294,7 @@ function MapSectionNonMemo({ passedRef, onDragstart, mapId = "dashboard" }) {
               lat={position.latitude}
               lon={position.longitude}
               zoom={initialViewState.zoom}
+              stale={!connectedToDrone}
             />
           )}
 

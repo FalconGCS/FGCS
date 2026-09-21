@@ -498,28 +498,8 @@ const socketMiddleware = (store) => {
         socket.socket.on("disconnected_from_drone", () => {
           store.dispatch(setConnected(false))
           store.dispatch(setConnectedToSimulator(false))
-          store.dispatch(
-            setGpsData({
-              mavpackettype: "GLOBAL_POSITION_INT",
-              time_boot_ms: 0,
-              lat: 0,
-              lon: 0,
-              alt: 0,
-              relative_alt: 0,
-              vx: 0,
-              vy: 0,
-              vz: 0,
-              hdg: 0,
-              timestamp: 0,
-            }),
-          )
-          store.dispatch(
-            setHomePosition({
-              lat: 0,
-              lon: 0,
-              alt: 0,
-            }),
-          )
+          // Keep the last known GPS and home position so the dashboard can
+          // still show where the drone ended up
           store.dispatch(resetGpsTrack())
           store.dispatch(setIsFetchingDashboardMission(false))
           store.dispatch(
@@ -550,11 +530,28 @@ const socketMiddleware = (store) => {
 
         // Flags that the drone is connected
         socket.socket.on("connected_to_drone", (msg) => {
+          // Clear the position kept from the previous connection so nothing
+          // stale is shown as live for the aircraft we've just connected to
           store.dispatch(
             setHomePosition({
               lat: 0,
               lon: 0,
               alt: 0,
+            }),
+          )
+          store.dispatch(
+            setGpsData({
+              mavpackettype: "GLOBAL_POSITION_INT",
+              time_boot_ms: 0,
+              lat: 0,
+              lon: 0,
+              alt: 0,
+              relative_alt: 0,
+              vx: 0,
+              vy: 0,
+              vz: 0,
+              hdg: 0,
+              timestamp: 0,
             }),
           )
           store.dispatch(setDroneAircraftType(msg.aircraft_type)) // There are two aircraftTypes, make sure to not use FLA one haha :D
