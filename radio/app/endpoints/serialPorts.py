@@ -10,6 +10,9 @@ def getSerialPortsConfig() -> None:
     Sends the serial ports config to the frontend, only works when
     the serial ports config screen is loaded.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="get the serial ports config")
+
     if droneStatus.state != "config.serial_ports":
         socketio.emit(
             "params_error",
@@ -19,9 +22,6 @@ def getSerialPortsConfig() -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="get the serial ports config")
 
     serial_ports_config = droneStatus.drone.serialPortsController.getConfig()
 
@@ -36,6 +36,9 @@ def setSerialPortConfigParam(data: SetConfigParam) -> None:
     """
     Sets a serial port config parameter on the drone.
     """
+    if not droneStatus.drone:
+        return notConnectedError(action="set a serial port config parameter")
+
     if droneStatus.state != "config.serial_ports":
         socketio.emit(
             "params_error",
@@ -45,9 +48,6 @@ def setSerialPortConfigParam(data: SetConfigParam) -> None:
         )
         logger.debug(f"Current state: {droneStatus.state}")
         return
-
-    if not droneStatus.drone:
-        return notConnectedError(action="set a serial port config parameter")
 
     param_id = data.get("param_id", None)
     value = data.get("value", None)

@@ -412,7 +412,9 @@ function MapSectionNonMemo({ passedRef, onDragstart, mapId = "dashboard" }) {
               <p>Zoom to home</p>
             </ContextMenuItem>
             <Divider className="my-1" />
-            <ContextMenuItem onClick={open}>Fly to here</ContextMenuItem>
+            <ContextMenuItem onClick={open} disabled={!connectedToDrone}>
+              Fly to here
+            </ContextMenuItem>
             <Divider className="my-1" />
             <ContextMenuItem onClick={measureDistance}>
               <p>Measure distance</p>
