@@ -153,6 +153,7 @@ import {
   setParamsWriteProgressModalOpen,
   setRebootData,
   setRebootPromptModalOpen,
+  setShowModifiedParams,
   setShownParams,
   updateParamValue,
 } from "../slices/paramsSlice.js"
@@ -1014,16 +1015,19 @@ const socketMiddleware = (store) => {
           const modifiedParams = store.getState().paramsSlice.modifiedParams
 
           // Only clear the params that got set successfully
-          store.dispatch(
-            setModifiedParams(
-              modifiedParams.filter(
-                (param) =>
-                  !paramsSetSuccessfully.some(
-                    (setParam) => setParam.param_id === param.param_id,
-                  ),
+          const remainingModifiedParams = modifiedParams.filter(
+            (param) =>
+              !paramsSetSuccessfully.some(
+                (setParam) => setParam.param_id === param.param_id,
               ),
-            ),
           )
+          store.dispatch(setModifiedParams(remainingModifiedParams))
+
+          // Nothing left to show in the modified params view, so go back to
+          // showing all params
+          if (remainingModifiedParams.length === 0) {
+            store.dispatch(setShowModifiedParams(false))
+          }
 
           // Update the param in the params list also
           for (let param of paramsSetSuccessfully) {
