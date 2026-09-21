@@ -8,7 +8,6 @@ import { distance } from "@turf/turf"
 import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
 import { intToCoord } from "../../../helpers/dataFormatters"
-import { selectConnectedToDrone } from "../../../redux/slices/droneConnectionSlice"
 import {
   selectAttitude,
   selectBatteryData,
@@ -40,11 +39,8 @@ export default function TelemetrySection({
   const navControllerOutputData = useSelector(selectNavController)
   const batteryData = useSelector(selectBatteryData)
   const homePosition = useSelector(selectHomePosition)
-  const connectedToDrone = useSelector(selectConnectedToDrone)
 
   const [distToHome, setDistToHome] = useState(0)
-
-  const gpsValue = (value) => (connectedToDrone ? value : "—")
 
   useEffect(() => {
     // Calculate distance from current pos to home pos
@@ -134,20 +130,16 @@ export default function TelemetrySection({
               <p className="text-center">m</p>
               <TelemetryValueDisplay
                 title="AMSL"
-                value={gpsValue(
-                  (gpsData.alt ? gpsData.alt / 1000 : 0).toFixed(2),
-                )}
+                value={(gpsData.alt ? gpsData.alt / 1000 : 0).toFixed(2)}
                 fs={telemetryFontSize}
                 tooltipText="Altitude Above Mean Sea Level"
               />
               <TelemetryValueDisplay
                 title="AREL"
-                value={gpsValue(
-                  (gpsData.relative_alt
-                    ? gpsData.relative_alt / 1000
-                    : 0
-                  ).toFixed(2),
-                )}
+                value={(gpsData.relative_alt
+                  ? gpsData.relative_alt / 1000
+                  : 0
+                ).toFixed(2)}
                 fs={telemetryFontSize}
                 tooltipText="Altitude Relative to Home"
               />
@@ -169,9 +161,7 @@ export default function TelemetrySection({
               <p className="text-center">deg &#176;</p>
               <TelemetryValueDisplay
                 title="HDG"
-                value={gpsValue(
-                  (gpsData.hdg ? gpsData.hdg / 100 : 0).toFixed(2),
-                )}
+                value={(gpsData.hdg ? gpsData.hdg / 100 : 0).toFixed(2)}
                 fs={telemetryFontSize}
                 tooltipText="Heading"
               />
@@ -190,7 +180,7 @@ export default function TelemetrySection({
           {/* Heading indicator image */}
           <div className="justify-self-center flex-shrink-0">
             <HeadingIndicator
-              heading={connectedToDrone && gpsData.hdg ? gpsData.hdg / 100 : 0}
+              heading={gpsData.hdg ? gpsData.hdg / 100 : 0}
               size={`${calcIndicatorSize()}px`}
             />
           </div>
@@ -210,7 +200,7 @@ export default function TelemetrySection({
               />
               <TelemetryValueDisplay
                 title="HOME"
-                value={gpsValue(distToHome.toFixed(2))}
+                value={distToHome.toFixed(2)}
                 fs={telemetryFontSize}
                 tooltipText="Distance to Home"
               />
