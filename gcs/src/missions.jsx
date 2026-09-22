@@ -29,7 +29,7 @@ import MissionsMapSection from "./components/missions/missionsMap"
 import RallyItemsTable from "./components/missions/rallyItemsTable"
 import { coordToInt, intToCoord } from "./helpers/dataFormatters"
 import { MAV_FRAME_DROPDOWN_DATA } from "./helpers/mavlinkConstants"
-import { buildMissionElevationProfile } from "./helpers/missionElevationProfile"
+import { buildMissionTraversal } from "./helpers/missionTraversal"
 
 // Redux
 import { useDispatch, useSelector } from "react-redux"
@@ -406,7 +406,7 @@ export default function Missions() {
   const sendElevationGraphUpdate = useCallback(() => {
     if (!window.ipcRenderer) return
 
-    const profile = buildMissionElevationProfile(
+    const profile = buildMissionTraversal(
       missionItems,
       aircraftType,
       plannedHomePosition,
