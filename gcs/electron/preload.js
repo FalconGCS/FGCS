@@ -80,6 +80,8 @@ const ALLOWED_ON_CHANNELS = [
   "fla:log-parse-progress",
   "app:send-ekf-status",
   "app:send-elevation-graph",
+  "app:elevation-graph-window-opened",
+  "app:elevation-graph-window-closed",
   "app:send-vibe-status",
   "settings:open",
   "mavlink-forwarding:open",

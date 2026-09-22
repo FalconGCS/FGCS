@@ -3,7 +3,7 @@
 */
 
 // Base imports
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 // 3rd Party Imports
 import { ResizableBox } from "react-resizable"
@@ -30,6 +30,8 @@ import RallyItemsTable from "./components/missions/rallyItemsTable"
 import { coordToInt, intToCoord } from "./helpers/dataFormatters"
 import { MAV_FRAME_DROPDOWN_DATA } from "./helpers/mavlinkConstants"
 import { buildMissionTraversal } from "./helpers/missionTraversal"
+import { useSettings } from "./helpers/settings"
+import useMissionTerrainProfile from "./helpers/useMissionTerrainProfile"
 
 // Redux
 import { useDispatch, useSelector } from "react-redux"
@@ -192,10 +194,35 @@ export default function Missions() {
     effectiveAcceptanceRadius,
   )
 
+  const { getSetting } = useSettings()
+
+  const [elevationGraphOpen, setElevationGraphOpen] = useState(false)
+
   // Follow the source of truth when it changes underneath the input
   useEffect(() => {
     setAcceptanceRadiusInput(effectiveAcceptanceRadius)
   }, [effectiveAcceptanceRadius])
+
+  useEffect(() => {
+    if (!window.ipcRenderer) return undefined
+
+    const onOpened = () => setElevationGraphOpen(true)
+    const onClosed = () => setElevationGraphOpen(false)
+
+    window.ipcRenderer.on("app:elevation-graph-window-opened", onOpened)
+    window.ipcRenderer.on("app:elevation-graph-window-closed", onClosed)
+
+    return () => {
+      window.ipcRenderer.removeListener(
+        "app:elevation-graph-window-opened",
+        onOpened,
+      )
+      window.ipcRenderer.removeListener(
+        "app:elevation-graph-window-closed",
+        onClosed,
+      )
+    }
+  }, [])
 
   function commitAcceptanceRadius() {
     if (
@@ -403,27 +430,47 @@ export default function Missions() {
     }
   }
 
+  const missionTraversal = useMemo(
+    () =>
+      buildMissionTraversal(missionItems, aircraftType, plannedHomePosition),
+    [missionItems, aircraftType, plannedHomePosition],
+  )
+
+  const { terrainPoints, terrainStatus } = useMissionTerrainProfile(
+    missionTraversal.points,
+    {
+      apiKey:
+        getSetting("General.maptilerAPIKey") ||
+        import.meta.env.VITE_MAPTILER_API_KEY,
+      enabled:
+        elevationGraphOpen &&
+        getSetting("General.showTerrainOnElevationGraph") !== false,
+    },
+  )
+
   const sendElevationGraphUpdate = useCallback(() => {
     if (!window.ipcRenderer) return
 
-    const profile = buildMissionTraversal(
-      missionItems,
-      aircraftType,
-      plannedHomePosition,
-    )
     window.ipcRenderer
-      .invoke("app:update-elevation-graph", profile)
+      .invoke("app:update-elevation-graph", {
+        ...missionTraversal,
+        terrainPoints,
+        terrainStatus,
+      })
       .catch((err) => {
         console.error("Failed to update elevation graph:", err)
       })
-  }, [missionItems, aircraftType, plannedHomePosition])
+  }, [missionTraversal, terrainPoints, terrainStatus])
 
   const openElevationGraph = useCallback(() => {
     if (!window.ipcRenderer) return
 
     window.ipcRenderer
       .invoke("app:open-elevation-graph-window")
-      .then(() => sendElevationGraphUpdate())
+      .then(() => {
+        setElevationGraphOpen(true)
+        sendElevationGraphUpdate()
+      })
       .catch((err) => {
         console.error("Failed to open elevation graph window:", err)
       })

@@ -1,6 +1,7 @@
 import {
   CategoryScale,
   Chart as ChartJS,
+  Filler,
   Legend,
   LineElement,
   LinearScale,
@@ -10,12 +11,23 @@ import {
 import { useEffect, useMemo, useState } from "react"
 import { Line } from "react-chartjs-2"
 
+const MISSION_DATASET_LABEL = "Mission Elevation"
+const TERRAIN_DATASET_LABEL = "Terrain"
+
 const waypointLabelPlugin = {
   id: "waypointLabelPlugin",
   afterDatasetsDraw(chart) {
     const { ctx } = chart
-    const datasetMeta = chart.getDatasetMeta(0)
-    const dataset = chart.data?.datasets?.[0]
+
+    // Found by label rather than index, so the terrain dataset never gets
+    // waypoint numbers drawn over it
+    const datasetIndex = chart.data?.datasets?.findIndex(
+      (dataset) => dataset.label === MISSION_DATASET_LABEL,
+    )
+    if (datasetIndex === undefined || datasetIndex < 0) return
+
+    const datasetMeta = chart.getDatasetMeta(datasetIndex)
+    const dataset = chart.data.datasets[datasetIndex]
 
     if (!datasetMeta || !dataset?.data) return
 
@@ -48,6 +60,7 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  Filler,
   Tooltip,
   Legend,
   waypointLabelPlugin,
@@ -69,11 +82,16 @@ const chartOptions = {
       callbacks: {
         title: () => "",
         label: (ctx) => {
+          if (ctx.dataset?.label === TERRAIN_DATASET_LABEL) {
+            return `Ground: ${ctx.parsed.y.toFixed(1)} m`
+          }
           if (ctx.raw?.isHome) {
             return `Home: ${ctx.parsed.y.toFixed(2)} m`
           }
           const seq = ctx.raw?.waypointSeq
-          return `WP ${seq}: ${ctx.parsed.y.toFixed(2)} m`
+          return Number.isFinite(seq)
+            ? `WP ${seq}: ${ctx.parsed.y.toFixed(2)} m`
+            : `${ctx.parsed.y.toFixed(2)} m`
         },
       },
     },
@@ -157,26 +175,78 @@ export default function ElevationGraphWindow() {
       isHome: Boolean(point.isHome),
     }))
 
-    return {
-      datasets: [
-        {
-          label: "Mission Elevation",
-          data,
-          borderColor: "#facc15",
-          backgroundColor: "rgba(250, 204, 21, 0.35)",
-          showLine: true,
-        },
-      ],
+    const datasets = [
+      {
+        label: MISSION_DATASET_LABEL,
+        data,
+        borderColor: "#facc15",
+        backgroundColor: "rgba(250, 204, 21, 0.35)",
+        showLine: true,
+        fill: false,
+        order: 1,
+      },
+    ]
+
+    const terrainData = (profile.terrainPoints || []).map((point) => ({
+      x: point.cumulativeDistance,
+      y: point.elevation,
+    }))
+
+    const hasUsableTerrain = terrainData.some((point) =>
+      Number.isFinite(point.y),
+    )
+
+    if (terrainData.length >= 2 && hasUsableTerrain) {
+      datasets.push({
+        label: TERRAIN_DATASET_LABEL,
+        data: terrainData,
+        borderColor: "#a8a29e",
+        backgroundColor: "rgba(87, 83, 78, 0.55)",
+        fill: "start",
+        pointRadius: 0,
+        pointHitRadius: 0,
+        borderWidth: 1.5,
+        showLine: true,
+        spanGaps: false,
+        order: 2,
+      })
     }
+
+    return { datasets }
   }, [profile])
+
+  const terrainMessage = useMemo(() => {
+    switch (profile.terrainStatus) {
+      case "loading":
+        return "Terrain: loading…"
+      case "no-api-key":
+        return "Terrain unavailable — set a MapTiler API key in Settings"
+      case "error":
+        return "Terrain unavailable (offline or tile request failed)"
+      case "disabled":
+        return "Terrain: off"
+      case "ready":
+        return chartData.datasets.length > 1
+          ? null
+          : "Terrain: no elevation data for this area"
+      default:
+        // No status at all means the mission side never sent one
+        return "Terrain: unavailable (no data received)"
+    }
+  }, [profile.terrainStatus, chartData])
 
   return (
     <div className="w-full h-full bg-falcongrey-800 text-slate-100 p-4 flex flex-col gap-3">
       <div className="flex flex-row justify-between items-center text-sm">
         <p className="font-semibold">Mission elevation profile</p>
-        <p className="text-slate-300">
-          Total distance: {Number(profile.totalDistance || 0).toFixed(2)} m
-        </p>
+        <div className="flex flex-row items-center gap-3">
+          {terrainMessage && (
+            <p className="text-slate-400 text-xs">{terrainMessage}</p>
+          )}
+          <p className="text-slate-300">
+            Total distance: {Number(profile.totalDistance || 0).toFixed(2)} m
+          </p>
+        </div>
       </div>
 
       {profile.warnings?.length > 0 && (

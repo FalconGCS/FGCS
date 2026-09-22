@@ -5,7 +5,21 @@ import { getCenteredWindowPosition } from "../utils/windowUtils"
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"]
 
 let elevationGraphWin: BrowserWindow | null = null
+let mainWin: BrowserWindow | null = null
 let lastElevationGraphPayload: unknown = null
+
+// The main window only fetches terrain data while the graph is actually open
+function notifyMainElevationGraphOpened() {
+  if (!mainWin || mainWin.isDestroyed()) return
+  if (mainWin.webContents.isDestroyed()) return
+  mainWin.webContents.send("app:elevation-graph-window-opened")
+}
+
+function notifyMainElevationGraphClosed() {
+  if (!mainWin || mainWin.isDestroyed()) return
+  if (mainWin.webContents.isDestroyed()) return
+  mainWin.webContents.send("app:elevation-graph-window-closed")
+}
 
 function sendElevationPayload() {
   if (!elevationGraphWin) return
@@ -20,6 +34,8 @@ function sendElevationPayload() {
 }
 
 export function openElevationGraphWindow(parentWindow?: BrowserWindow) {
+  if (parentWindow) mainWin = parentWindow
+
   if (elevationGraphWin === null) {
     const windowOptions: Electron.BrowserWindowConstructorOptions = {
       width: 760,
@@ -48,8 +64,10 @@ export function openElevationGraphWindow(parentWindow?: BrowserWindow) {
     }
 
     elevationGraphWin = new BrowserWindow(windowOptions)
+    // Fires however the window goes away, including on app quit
     elevationGraphWin.once("closed", () => {
       elevationGraphWin = null
+      notifyMainElevationGraphClosed()
     })
   }
 
@@ -63,6 +81,7 @@ export function openElevationGraphWindow(parentWindow?: BrowserWindow) {
 
   elevationGraphWin.setMenuBarVisibility(false)
   elevationGraphWin.show()
+  notifyMainElevationGraphOpened()
 }
 
 export function closeElevationGraphWindow() {

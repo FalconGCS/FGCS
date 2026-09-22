@@ -17,6 +17,12 @@
       ],
       "display": "Map Style"
     },
+    "showTerrainOnElevationGraph": {
+      "description": "Draws ground elevation from MapTiler terrain tiles while the elevation graph is open. Requires a network connection and uses your MapTiler tile quota.",
+      "default": true,
+      "type": "boolean",
+      "display": "Show Terrain On Elevation Graph"
+    },
     "autoCheckForUpdates": {
       "default": true,
       "type": "boolean",
