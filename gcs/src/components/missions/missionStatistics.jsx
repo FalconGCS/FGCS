@@ -11,11 +11,12 @@ import {
   filterMissionItems,
   isGlobalFrameHomeCommand,
 } from "../../helpers/filterMissions"
-import { getLoiterDistanceMeters } from "../../helpers/loiterCommands"
+import { calculateMissionTotalDistance } from "../../helpers/missionTraversal"
 import { buildMissionWaypointLegMetrics } from "../../helpers/missionWaypointMetrics"
 
 // Redux
 import { useSelector } from "react-redux"
+import { selectAircraftType } from "../../redux/slices/droneInfoSlice"
 import {
   selectDrawingMissionItems,
   selectPlannedHomePosition,
@@ -74,79 +75,6 @@ function calculateMaxSlopeGradient(missionItems, homePosition) {
   }
 }
 
-function calculateTotalDistance(missionItems, homePosition) {
-  // This function should calculate the total distance of the waypoints,
-  // ignoring any waypoints without coordinates. If the jump command (177) is present,
-  // then the distance for all of the jump waypoints for the number of laps should
-  // be calculated as well.
-  let totalDistance = 0
-  let lastPoint = null
-
-  // Swap the coords of the first position with the home position if it exists
-  if (
-    missionItems.length > 1 &&
-    isGlobalFrameHomeCommand(missionItems[0]) &&
-    homePosition &&
-    missionItems[1].command === 22
-  ) {
-    const newFirstPoint = {
-      ...missionItems[1],
-      x: homePosition.lat,
-      y: homePosition.lon,
-      z: homePosition.alt,
-    }
-    missionItems = [newFirstPoint, ...missionItems.slice(1)]
-  }
-
-  for (let i = 0; i < missionItems.length; i++) {
-    const item = missionItems[i]
-
-    if (item.command === 177) {
-      const jumpTo = item.param1
-      const jumpCount = item.param2
-
-      // Find the waypoint with the seq value equal to jumpTo
-      const jumpWaypoint = missionItems.find((wp) => wp.seq === jumpTo)
-
-      if (jumpWaypoint) {
-        // Calculate the distance from the jumpWaypoint to the current waypoint
-        // times the number of jumps
-        if (lastPoint) {
-          totalDistance +=
-            distance(
-              [intToCoord(lastPoint.y), intToCoord(lastPoint.x)],
-              [intToCoord(jumpWaypoint.y), intToCoord(jumpWaypoint.x)],
-              { units: "meters" },
-            ) * jumpCount
-        }
-
-        for (let j = 0; j < jumpCount; j++) {
-          // Slice the missionItems list between the actual array index of jumpWaypoint and i
-          const jumpStartIdx = missionItems.findIndex((wp) => wp.seq === jumpTo)
-          const jumpItems = missionItems.slice(jumpStartIdx, i)
-          totalDistance += calculateTotalDistance(jumpItems)
-        }
-      }
-    }
-
-    if (item.x === 0 || item.y === 0) continue // Skip waypoints without coordinates
-
-    // Circling at a loiter is flown on top of the legs either side of it
-    totalDistance += getLoiterDistanceMeters(item)
-
-    if (lastPoint) {
-      totalDistance += distance(
-        [intToCoord(lastPoint.y), intToCoord(lastPoint.x)],
-        [intToCoord(item.y), intToCoord(item.x)],
-        { units: "meters" },
-      )
-    }
-    lastPoint = item
-  }
-
-  return Math.round(totalDistance * 100) / 100
-}
-
 function calculateMaxTelemDistance(missionItems, homePosition) {
   // Calculate the max distance from the home position
   if (missionItems.length === 0 || !homePosition)
@@ -195,6 +123,7 @@ function StatisticItem({ label, value, units, tooltip = null }) {
 export default function MissionStatistics() {
   const missionItems = useSelector(selectDrawingMissionItems)
   const plannedHomePosition = useSelector(selectPlannedHomePosition)
+  const aircraftType = useSelector(selectAircraftType)
 
   const [filteredMissionItems, setFilteredMissionItems] = useState([])
   const [totalDistance, setTotalDistance] = useState(0)
@@ -225,7 +154,13 @@ export default function MissionStatistics() {
     }
 
     // Use unfiltered mission items
-    setTotalDistance(calculateTotalDistance(missionItems, plannedHomePosition))
+    setTotalDistance(
+      calculateMissionTotalDistance(
+        missionItems,
+        aircraftType,
+        plannedHomePosition,
+      ),
+    )
     setMaxAltitude(calculateMaxAltitude(filteredMissionItems))
     setMaxDistanceBetweenWaypoints(
       calculateMaxDistanceBetweenWaypoints(missionItems, plannedHomePosition),
@@ -236,7 +171,7 @@ export default function MissionStatistics() {
     setMaxTelemDistance(
       calculateMaxTelemDistance(filteredMissionItems, plannedHomePosition),
     )
-  }, [filteredMissionItems, plannedHomePosition])
+  }, [filteredMissionItems, plannedHomePosition, aircraftType])
 
   return (
     <>

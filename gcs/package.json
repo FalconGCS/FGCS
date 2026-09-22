@@ -16,6 +16,7 @@
   "scripts": {
     "test": "tsc && vite build && xvfb-maybe yarn playwright test",
     "test:nobuild": "xvfb-maybe yarn playwright test",
+    "test:unit": "vitest run",
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
     "lint": "eslint src electron tests --ext js,jsx,ts,tsx",

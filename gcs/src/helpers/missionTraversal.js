@@ -1,6 +1,9 @@
+// Calculates the ordered list of points the aircraft passes through during a mission
+
 import { distance } from "@turf/turf"
 import { intToCoord } from "./dataFormatters"
-import { filterMissionItems } from "./filterMissions"
+import { filterMissionItems, isGlobalFrameHomeCommand } from "./filterMissions"
+import { getLoiterDistanceMeters } from "./loiterCommands"
 import {
   COPTER_MISSION_ITEM_COMMANDS_LIST,
   MAV_FRAME_LIST,
@@ -32,25 +35,37 @@ function toFiniteNumber(value) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function buildHomePoint(homePosition) {
-  if (!homePosition || typeof homePosition !== "object") return null
+function buildHomePoint(homePosition, missionItems) {
+  const homeLat = toFiniteNumber(homePosition?.lat)
+  const homeLon = toFiniteNumber(homePosition?.lon)
+  const homeAltitude = toFiniteNumber(homePosition?.alt)
 
-  const homeLat = toFiniteNumber(homePosition.lat)
-  const homeLon = toFiniteNumber(homePosition.lon)
-  const homeAltitude = toFiniteNumber(homePosition.alt)
-
-  if (homeLat === null || homeLon === null || homeAltitude === null) {
-    return null
+  // 0,0 is the "no home set yet" placeholder, so fall back to the mission's
+  // own home item when there is one
+  if (homeLat !== null && homeLon !== null && homeLat !== 0 && homeLon !== 0) {
+    return {
+      seq: 0,
+      altitude: homeAltitude === null ? 0 : homeAltitude,
+      lat: intToCoord(homeLat),
+      lon: intToCoord(homeLon),
+      label: "Home",
+      isHome: true,
+    }
   }
 
-  return {
-    seq: 0,
-    altitude: homeAltitude,
-    lat: intToCoord(homeLat),
-    lon: intToCoord(homeLon),
-    label: "Home",
-    isHome: true,
+  const firstItem = Array.isArray(missionItems) ? missionItems[0] : null
+  if (firstItem && isGlobalFrameHomeCommand(firstItem)) {
+    return {
+      seq: 0,
+      altitude: toFiniteNumber(firstItem.z) ?? 0,
+      lat: intToCoord(firstItem.x),
+      lon: intToCoord(firstItem.y),
+      label: "Home",
+      isHome: true,
+    }
   }
+
+  return null
 }
 
 function resolveAltitudeByFrame(waypoint, homeAltitude, warnings) {
@@ -97,13 +112,15 @@ function resolveAltitudeByFrame(waypoint, homeAltitude, warnings) {
   return rawAltitude
 }
 
-export function buildMissionElevationProfile(
+// Return the points in the order the aircraft flies them, with the distance
+// flown up to each one. The first point is always the home position
+export function buildMissionTraversal(
   missionItems,
   aircraftType,
   homePosition,
 ) {
-  const homePoint = buildHomePoint(homePosition)
-  const homeAltitude = toFiniteNumber(homePosition?.alt)
+  const homePoint = buildHomePoint(homePosition, missionItems)
+  const homeAltitude = homePoint ? homePoint.altitude : null
 
   if (!Array.isArray(missionItems) || missionItems.length === 0) {
     return {
@@ -166,6 +183,8 @@ export function buildMissionElevationProfile(
             continue
           }
         } else if (jumpCount !== null && jumpCount > 0) {
+          // The autopilot's repeat counter is per mission item and is not reset
+          // by an enclosing loop, so neither is this one
           const executions = finiteJumpExecutions.get(currentItem.seq) || 0
           if (executions < jumpCount) {
             finiteJumpExecutions.set(currentItem.seq, executions + 1)
@@ -188,6 +207,8 @@ export function buildMissionElevationProfile(
           altitude,
           lat: intToCoord(waypoint.x),
           lon: intToCoord(waypoint.y),
+          // Circling at a loiter is flown on top of the legs either side of it
+          loiterDistance: getLoiterDistanceMeters(waypoint),
         })
       }
     }
@@ -202,31 +223,55 @@ export function buildMissionElevationProfile(
   }
 
   const pointsWithHome = homePoint
-    ? [homePoint, ...traversalPoints]
+    ? [{ ...homePoint, loiterDistance: 0 }, ...traversalPoints]
     : traversalPoints
 
+  const points = []
   let cumulativeDistance = 0
-  const points = pointsWithHome.map((point, idx) => {
-    if (idx > 0) {
-      const prev = pointsWithHome[idx - 1]
+  let previousPoint = null
+
+  for (const point of pointsWithHome) {
+    if (previousPoint) {
       cumulativeDistance += distance(
-        [prev.lon, prev.lat],
+        [previousPoint.lon, previousPoint.lat],
         [point.lon, point.lat],
-        {
-          units: "meters",
-        },
+        { units: "meters" },
       )
     }
 
-    return {
-      ...point,
+    const { loiterDistance, ...pointWithoutLoiter } = point
+    points.push({
+      ...pointWithoutLoiter,
       cumulativeDistance: Math.round(cumulativeDistance * 100) / 100,
+    })
+
+    if (loiterDistance > 0) {
+      // A second point at the same place, so the circles show on the graph as
+      // distance flown at a constant altitude
+      cumulativeDistance += loiterDistance
+      points.push({
+        ...pointWithoutLoiter,
+        label: "",
+        isLoiterExit: true,
+        cumulativeDistance: Math.round(cumulativeDistance * 100) / 100,
+      })
     }
-  })
+
+    previousPoint = point
+  }
 
   return {
     points,
     totalDistance: Math.round(cumulativeDistance * 100) / 100,
     warnings,
   }
+}
+
+export function calculateMissionTotalDistance(
+  missionItems,
+  aircraftType,
+  homePosition,
+) {
+  return buildMissionTraversal(missionItems, aircraftType, homePosition)
+    .totalDistance
 }
