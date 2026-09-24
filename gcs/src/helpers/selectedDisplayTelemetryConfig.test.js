@@ -42,7 +42,14 @@ describe("toSelectedDisplayTelemetryPersistedConfig", () => {
 
   it("never persists the live value", () => {
     const config = toSelectedDisplayTelemetryPersistedConfig(
-      [{ boxId: 0, currently_selected: "VFR_HUD.alt", display_name: "Alt", value: 123 }],
+      [
+        {
+          boxId: 0,
+          currently_selected: "VFR_HUD.alt",
+          display_name: "Alt",
+          value: 123,
+        },
+      ],
       { rows: 1, cols: 1 },
     )
     expect(config.boxes[0]).not.toHaveProperty("value")
