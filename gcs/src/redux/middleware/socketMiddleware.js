@@ -35,6 +35,7 @@ import {
 
 // socket factory
 import { CHECKLIST_AUTO_BINDINGS } from "../../helpers/checklistAutoBindings"
+import { resolveSelectedValue } from "../../helpers/dashboardDataGrid.js"
 import { dataFormatters } from "../../helpers/dataFormatters.js"
 import { isGlobalFrameHomeCommand } from "../../helpers/filterMissions.js"
 import { readGcsSystemIdSync } from "../../helpers/gcsSystemId.js"
@@ -694,7 +695,6 @@ const socketMiddleware = (store) => {
 
           // Data points on dashboard, the below code updates the value in the store when a new message
           // comes in in the type of specificData.
-          const packetType = msg.mavpackettype
           const storeState = store.getState()
           if (storeState !== undefined) {
             const selectedDisplayTelemetry =
@@ -703,18 +703,13 @@ const socketMiddleware = (store) => {
 
             const updatedSelectedDisplayTelemetry =
               selectedDisplayTelemetry.map((dataItem) => {
-                if (
-                  typeof dataItem.currently_selected === "string" &&
-                  dataItem.currently_selected.startsWith(packetType)
-                ) {
-                  const specificData = dataItem.currently_selected.split(".")[1]
-                  if (Object.prototype.hasOwnProperty.call(msg, specificData)) {
-                    const nextValue = msg[specificData]
-                    if (dataItem.value !== nextValue) {
-                      hasSelectedDisplayTelemetryChange = true
-                      return { ...dataItem, value: nextValue }
-                    }
-                  }
+                const nextValue = resolveSelectedValue(
+                  msg,
+                  dataItem.currently_selected,
+                )
+                if (nextValue !== undefined && dataItem.value !== nextValue) {
+                  hasSelectedDisplayTelemetryChange = true
+                  return { ...dataItem, value: nextValue }
                 }
                 return dataItem
               })

@@ -7,6 +7,7 @@
 import { Tooltip } from "@mantine/core"
 
 // Helper Functions
+import { calcValueFontSize } from "./dashboardDataGrid"
 import { dataFormatters } from "./dataFormatters"
 
 const colorPalette = [
@@ -25,20 +26,58 @@ function to2dp(num) {
   return num.toString().match(/^-?\d+(?:\.\d{0,2})?/)[0]
 }
 
-export function DataMessage({ label, value, currentlySelected, id }) {
+export function DataMessage({
+  label,
+  value,
+  currentlySelected,
+  id,
+  valueFontSize,
+  labelFontSize,
+  cellWidth,
+}) {
+  const isUnset =
+    currentlySelected === null ||
+    currentlySelected === undefined ||
+    currentlySelected === ""
+
   let color = colorPalette[id % colorPalette.length]
+  var formattedValue = "-"
 
-  var formattedValue = to2dp(value)
+  if (!isUnset) {
+    formattedValue = to2dp(value)
 
-  if (currentlySelected in dataFormatters) {
-    formattedValue = to2dp(dataFormatters[currentlySelected](value))
+    if (currentlySelected in dataFormatters) {
+      formattedValue = to2dp(dataFormatters[currentlySelected](value))
+    }
   }
 
+  // Narrow this box's font to whatever it is actually showing
+  const fittedValueFontSize = valueFontSize
+    ? calcValueFontSize({
+        cellWidth,
+        maxFontSize: valueFontSize,
+        text: formattedValue,
+      })
+    : undefined
+
   return (
-    <Tooltip label={currentlySelected}>
-      <div className="flex flex-col items-center justify-center">
-        <p className="text-sm text-center">{label}</p>
-        <p className="text-5xl" style={{ color: color }}>
+    <Tooltip label={isUnset ? "No data selected" : currentlySelected}>
+      <div className="flex flex-col items-center justify-center h-full overflow-hidden">
+        <p
+          className={`text-center truncate w-full font-bold ${labelFontSize ? "" : "text-sm"}`}
+          style={labelFontSize ? { fontSize: `${labelFontSize}px` } : undefined}
+        >
+          {!isUnset && label}
+        </p>
+        <p
+          className={`whitespace-nowrap ${fittedValueFontSize ? "" : "text-5xl"}`}
+          style={{
+            color: isUnset ? "#6b7280" : color,
+            ...(fittedValueFontSize
+              ? { fontSize: `${fittedValueFontSize}px`, lineHeight: 1.05 }
+              : {}),
+          }}
+        >
           {formattedValue}
         </p>
       </div>

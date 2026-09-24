@@ -1,5 +1,11 @@
 import { createSelector, createSlice } from "@reduxjs/toolkit"
 import { bearing, distance } from "@turf/turf"
+import {
+  clampDataGridSize,
+  DEFAULT_DATA_GRID_COLS,
+  DEFAULT_DATA_GRID_ROWS,
+  resizeSelectedDisplayTelemetry,
+} from "../../helpers/dashboardDataGrid"
 import { defaultDataMessages } from "../../helpers/dashboardDefaultDataMessages"
 import { centiDegToDeg, intToCoord } from "../../helpers/dataFormatters"
 import {
@@ -97,6 +103,10 @@ const droneInfoSlice = createSlice({
     aircraftType: 2, // Default to copter, will be updated on heartbeat
     batteryData: [],
     selectedDisplayTelemetry: [...defaultDataMessages],
+    dataGridSize: {
+      rows: DEFAULT_DATA_GRID_ROWS,
+      cols: DEFAULT_DATA_GRID_COLS,
+    },
     guidedModePinData: {
       lat: 0, // Stored in coords not int
       lon: 0, // Stored in coords not int
@@ -199,6 +209,22 @@ const droneInfoSlice = createSlice({
       if (action.payload !== state.selectedDisplayTelemetry) {
         state.selectedDisplayTelemetry = action.payload
       }
+    },
+    setDataGridSize: (state, action) => {
+      const size = clampDataGridSize(action.payload)
+      state.dataGridSize = size
+      state.selectedDisplayTelemetry = resizeSelectedDisplayTelemetry(
+        state.selectedDisplayTelemetry,
+        size.rows * size.cols,
+      )
+    },
+    setDataGridConfig: (state, action) => {
+      const size = clampDataGridSize(action.payload)
+      state.dataGridSize = size
+      state.selectedDisplayTelemetry = resizeSelectedDisplayTelemetry(
+        action.payload?.boxes,
+        size.rows * size.cols,
+      )
     },
     setDroneAircraftType: (state, action) => {
       if (action.payload !== state.aircraftType) {
@@ -427,6 +453,7 @@ const droneInfoSlice = createSlice({
     selectRawBatteryData: (state) => state.batteryData,
     selectGuidedModePinData: (state) => state.guidedModePinData,
     selectSelectedDisplayTelemetry: (state) => state.selectedDisplayTelemetry,
+    selectDataGridSize: (state) => state.dataGridSize,
     selectStatusText: (state) => state.statusText,
     selectGraphValues: (state) => state.graphs.selectedGraphs,
     selectLastGraphMessage: (state) => state.graphs.lastGraphResultsMessage,
@@ -447,6 +474,8 @@ export const {
   soundPlayed,
   changeSelectedDisplayTelemetry,
   setSelectedDisplayTelemetry,
+  setDataGridSize,
+  setDataGridConfig,
   setDroneAircraftType,
   setEscTelemetryData,
   setTelemetryData,
@@ -630,6 +659,7 @@ export const {
   selectAircraftType,
   selectGuidedModePinData,
   selectSelectedDisplayTelemetry,
+  selectDataGridSize,
   selectGraphValues,
   selectLastGraphMessage,
   selectEkfStatusReportData,

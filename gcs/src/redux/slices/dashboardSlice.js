@@ -7,6 +7,10 @@ const initialState = {
     gpsCoords: { lat: 0, lng: 0 },
     markerId: null,
   },
+  dataGridContextMenu: {
+    isOpen: false,
+    position: { x: 0, y: 0 },
+  },
   distanceMeasurements: {
     draftStart: null,
     items: [],
@@ -22,6 +26,14 @@ const dashboardSlice = createSlice({
 
       state.contextMenu = {
         ...state.contextMenu,
+        ...action.payload,
+      }
+    },
+    updateDataGridContextMenuState: (state, action) => {
+      if (action.payload === state.dataGridContextMenu) return
+
+      state.dataGridContextMenu = {
+        ...state.dataGridContextMenu,
         ...action.payload,
       }
     },
@@ -48,6 +60,7 @@ const dashboardSlice = createSlice({
   },
   selectors: {
     selectDashboardContextMenu: (state) => state.contextMenu,
+    selectDataGridContextMenu: (state) => state.dataGridContextMenu,
     selectDashboardDistanceMeasurements: (state) =>
       state.distanceMeasurements.items,
     selectDashboardDistanceMeasurementDraftStart: (state) =>
@@ -57,6 +70,7 @@ const dashboardSlice = createSlice({
 
 export const {
   updateDashboardContextMenuState,
+  updateDataGridContextMenuState,
   setDashboardDistanceMeasurementDraftStart,
   addDashboardDistanceMeasurement,
   clearDashboardDistanceMeasurementDraftStart,
@@ -66,6 +80,7 @@ export const {
 
 export const {
   selectDashboardContextMenu,
+  selectDataGridContextMenu,
   selectDashboardDistanceMeasurements,
   selectDashboardDistanceMeasurementDraftStart,
 } = dashboardSlice.selectors

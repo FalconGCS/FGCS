@@ -7,6 +7,11 @@ import {
   readSettingsSync,
   writeSettingSync,
 } from "../helpers/persistedSettings"
+import {
+  SELECTED_DISPLAY_TELEMETRY_SETTING,
+  mergeSelectedDisplayTelemetryConfigWithDefaults,
+  toSelectedDisplayTelemetryPersistedConfig,
+} from "../helpers/selectedDisplayTelemetryConfig"
 import armedMiddleware from "./middleware/armedMiddleware"
 import heartbeatMonitorMiddleware from "./middleware/heartbeatMonitorMiddleware"
 import socketMiddleware from "./middleware/socketMiddleware"
@@ -26,9 +31,9 @@ import droneConnectionSlice, {
   setStatusTextSize,
 } from "./slices/droneConnectionSlice"
 import droneInfoSlice, {
+  setDataGridConfig,
   setDroneAircraftType,
   setGraphValues,
-  setSelectedDisplayTelemetry,
 } from "./slices/droneInfoSlice"
 import ftpSlice from "./slices/ftpSlice"
 import kmlSlice from "./slices/kmlSlice"
@@ -199,7 +204,6 @@ if (selectedRealtimeGraphs !== null) {
   }
 }
 
-const SELECTED_DISPLAY_TELEMETRY_SETTING = "selectedDisplayTelemetry"
 const { readable: settingsReadable, settings: persistedSettings } =
   readSettingsSync()
 
@@ -210,11 +214,18 @@ if (!settingsReadable) {
   )
 }
 
+// A config is usable if it is the current object shape or the plain array that
+// builds before the resizable grid wrote
+function hasPersistedBoxes(config) {
+  if (Array.isArray(config)) return config.length > 0
+  return Array.isArray(config?.boxes) && config.boxes.length > 0
+}
+
 function hydrateSelectedDisplayTelemetry() {
   const savedConfig = persistedSettings[SELECTED_DISPLAY_TELEMETRY_SETTING]
-  if (Array.isArray(savedConfig) && savedConfig.length > 0) {
+  if (hasPersistedBoxes(savedConfig)) {
     store.dispatch(
-      setSelectedDisplayTelemetry(
+      setDataGridConfig(
         mergeSelectedDisplayTelemetryConfigWithDefaults(savedConfig),
       ),
     )
@@ -243,12 +254,15 @@ function hydrateSelectedDisplayTelemetry() {
 
   const mergedConfig =
     mergeSelectedDisplayTelemetryConfigWithDefaults(parsedLegacyConfig)
-  store.dispatch(setSelectedDisplayTelemetry(mergedConfig))
+  store.dispatch(setDataGridConfig(mergedConfig))
 
   if (canPersistSelectedDisplayTelemetry) {
     writeSettingSync(
       SELECTED_DISPLAY_TELEMETRY_SETTING,
-      toSelectedDisplayTelemetryPersistedConfig(mergedConfig),
+      toSelectedDisplayTelemetryPersistedConfig(
+        mergedConfig.boxes,
+        mergedConfig,
+      ),
     )
   }
 }
@@ -349,54 +363,12 @@ const updateJSONLocalStorageIfChanged = (key, newValue) => {
   }
 }
 
-// We only want to store the necessary fields of the selected display telemetry
-// in local storage, and not the value which is updated frequently with incoming
-// messages.
-function toSelectedDisplayTelemetryPersistedConfig(selectedDisplayTelemetry) {
-  return selectedDisplayTelemetry.map(
-    ({ boxId, currently_selected, display_name }) => ({
-      boxId,
-      currently_selected,
-      display_name,
-    }),
-  )
-}
-
-// When loading the selected display telemetry config from local storage, we
-// want to merge it with the default config to ensure any new telemetry options
-// are included and old ones that have been removed are not included. We also
-// want to ensure that if the default config changes (e.g. display names updated)
-// that these changes are reflected while still keeping the user's selected
-// telemetry and display names.
-function mergeSelectedDisplayTelemetryConfigWithDefaults(persistedConfig) {
-  const defaultSelectedDisplayTelemetry =
-    store.getState().droneInfo.selectedDisplayTelemetry
-
-  const persistedConfigByBoxId = new Map(
-    persistedConfig
-      .filter((item) => item && item.boxId != null)
-      .map((item) => [item.boxId, item]),
-  )
-
-  return defaultSelectedDisplayTelemetry.map((defaultItem) => {
-    const persistedItem = persistedConfigByBoxId.get(defaultItem.boxId)
-    if (!persistedItem) {
-      return defaultItem
-    }
-
-    return {
-      ...defaultItem,
-      currently_selected: persistedItem.currently_selected,
-      display_name: persistedItem.display_name,
-    }
-  })
-}
-
 let prevPersistentColorMap = store.getState().logAnalyser.persistentColorMap
 let prevKmlLayers = store.getState().kml.layers
 let prevSelectedDisplayTelemetryJson = JSON.stringify(
   toSelectedDisplayTelemetryPersistedConfig(
     store.getState().droneInfo.selectedDisplayTelemetry,
+    store.getState().droneInfo.dataGridSize,
   ),
 )
 
@@ -487,6 +459,7 @@ store.subscribe(() => {
     const selectedDisplayTelemetryConfig =
       toSelectedDisplayTelemetryPersistedConfig(
         store_mut.droneInfo.selectedDisplayTelemetry,
+        store_mut.droneInfo.dataGridSize,
       )
     const selectedDisplayTelemetryJson = JSON.stringify(
       selectedDisplayTelemetryConfig,

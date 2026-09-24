@@ -1,5 +1,3 @@
-import { mavlinkMsgParams } from "./mavllinkDataStreams"
-
 const desiredDefaultMessages = [
   "VFR_HUD.throttle",
   "VFR_HUD.alt",
@@ -10,12 +8,11 @@ const desiredDefaultMessages = [
 ]
 
 export const defaultDataMessages = desiredDefaultMessages.map((msg, idx) => {
-  const [stream, field] = msg.split(".")
-  const display_name = mavlinkMsgParams[stream][field]
+  const [, field] = msg.split(".")
   return {
     boxId: idx,
     currently_selected: msg,
-    display_name,
+    display_name: field,
     value: 0,
   }
 })
