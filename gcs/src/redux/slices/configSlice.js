@@ -4,6 +4,8 @@ const configSlice = createSlice({
   name: "config",
   initialState: {
     activeTab: null,
+    failsafeConfig: {},
+    refreshingFailsafeConfigData: false,
     getGripperEnabled: false,
     gripperConfig: {},
     refreshingGripperConfigData: false,
@@ -81,6 +83,19 @@ const configSlice = createSlice({
       const { param_id, value } = action.payload
       if (state.gripperConfig[param_id] === value) return
       state.gripperConfig[param_id] = value
+    },
+    setFailsafeConfig: (state, action) => {
+      if (action.payload === state.failsafeConfig) return
+      state.failsafeConfig = action.payload
+    },
+    updateFailsafeConfigParam: (state, action) => {
+      const { param_id, value } = action.payload
+      if (state.failsafeConfig[param_id] === value) return
+      state.failsafeConfig[param_id] = value
+    },
+    setRefreshingFailsafeConfigData: (state, action) => {
+      if (action.payload === state.refreshingFailsafeConfigData) return
+      state.refreshingFailsafeConfigData = action.payload
     },
     setRefreshingGripperConfigData: (state, action) => {
       if (action.payload === state.refreshingGripperConfigData) return
@@ -214,11 +229,13 @@ const configSlice = createSlice({
     },
 
     // Emits
+    emitGetFailsafeConfig: () => {},
     emitGetGripperEnabled: () => {},
     emitSetGripperEnabled: () => {},
     emitSetGripperDisabled: () => {},
     emitGetGripperConfig: () => {},
     emitSetGripperConfigParam: () => {},
+    emitSetFailsafeConfigParam: () => {},
     emitGetFlightModeConfig: () => {},
     emitSetFlightMode: () => {},
     emitSetFlightModeChannel: () => {},
@@ -241,6 +258,9 @@ const configSlice = createSlice({
   },
   selectors: {
     selectActiveTab: (state) => state.activeTab,
+    selectFailsafeConfig: (state) => state.failsafeConfig,
+    selectRefreshingFailsafeConfigData: (state) =>
+      state.refreshingFailsafeConfigData,
     selectGetGripperEnabled: (state) => state.getGripperEnabled,
     selectGripperConfig: (state) => state.gripperConfig,
     selectRefreshingGripperConfigData: (state) =>
@@ -266,9 +286,12 @@ const configSlice = createSlice({
 
 export const {
   setActiveTab,
+  setFailsafeConfig,
   setGetGripperEnabled,
   setGripperConfig,
   updateGripperConfigParam,
+  updateFailsafeConfigParam,
+  setRefreshingFailsafeConfigData,
   setRefreshingGripperConfigData,
   setFlightModesList,
   setFlightModeChannel,
@@ -290,11 +313,13 @@ export const {
   setSerialPortsConfig,
   updateSerialPortConfigParam,
 
+  emitGetFailsafeConfig,
   emitGetGripperEnabled,
   emitSetGripperEnabled,
   emitSetGripperDisabled,
   emitGetGripperConfig,
   emitSetGripperConfigParam,
+  emitSetFailsafeConfigParam,
   emitGetFlightModeConfig,
   emitSetFlightMode,
   emitSetFlightModeChannel,
@@ -318,6 +343,8 @@ export const {
 
 export const {
   selectActiveTab,
+  selectFailsafeConfig,
+  selectRefreshingFailsafeConfigData,
   selectGetGripperEnabled,
   selectGripperConfig,
   selectRefreshingGripperConfigData,

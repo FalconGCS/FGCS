@@ -11,7 +11,9 @@ import { useEffect } from "react"
 import { Tabs } from "@mantine/core"
 
 // Custom component and helpers
+import Failsafes from "./components/config/failsafe"
 import FlightModes from "./components/config/flightModes"
+import Ftp from "./components/config/ftp"
 import Gripper from "./components/config/gripper"
 import Motortestpanel from "./components/config/motorTest"
 import RadioCalibration from "./components/config/radioCalibration"
@@ -20,7 +22,6 @@ import NoDroneConnected from "./components/noDroneConnected"
 
 // Redux
 import { useDispatch, useSelector } from "react-redux"
-import Ftp from "./components/config/ftp"
 import { selectActiveTab, setActiveTab } from "./redux/slices/configSlice"
 import { selectConnectedToDrone } from "./redux/slices/droneConnectionSlice"
 import SerialPorts from "./components/config/serialPorts"
@@ -41,7 +42,7 @@ export default function Config() {
   return (
     <Layout currentPage="config">
       {connected ? (
-        <div className="w-full h-full">
+        <div className="size-full">
           <Tabs
             orientation="vertical"
             color={"red"}
@@ -55,6 +56,7 @@ export default function Config() {
               <Tabs.Tab value="motor_test">Motor Test</Tabs.Tab>
               <Tabs.Tab value="rc_calibration">RC Calibration</Tabs.Tab>
               <Tabs.Tab value="flightmodes">Flight modes</Tabs.Tab>
+              <Tabs.Tab value="failsafes">Failsafes</Tabs.Tab>
               <Tabs.Tab value="servo">Servo Output</Tabs.Tab>
               <Tabs.Tab value="serial_ports">Serial Ports</Tabs.Tab>
               <Tabs.Tab value="ftp">FTP</Tabs.Tab>
@@ -77,6 +79,11 @@ export default function Config() {
             <Tabs.Panel value="flightmodes">
               <div className={paddingTop}>
                 <FlightModes />
+              </div>
+            </Tabs.Panel>
+            <Tabs.Panel value="failsafes">
+              <div className="size-full">
+                <Failsafes />
               </div>
             </Tabs.Panel>
             <Tabs.Panel value="servo">

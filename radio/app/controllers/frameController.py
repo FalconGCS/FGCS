@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Union
 
-from app.customTypes import Number
+from app.customTypes import Number, VehicleType
 
 if TYPE_CHECKING:
     from app.drone import Drone
@@ -21,7 +21,7 @@ class FrameController:
         self.frame_class: Number = 0
 
         # Plane type doesn't have a frame type or class
-        if self.drone.aircraft_type != 1:
+        if self.drone.aircraft_type != VehicleType.FIXED_WING.value:
             self.getFrameType()
             self.getFrameClass()
 

@@ -5,7 +5,7 @@ from threading import current_thread
 from typing import TYPE_CHECKING
 
 import serial
-from app.customTypes import Response
+from app.customTypes import Response, VehicleType
 from app.utils import commandAccepted, sendingCommandLock
 from pymavlink import mavutil
 
@@ -27,7 +27,7 @@ class NavController:
         self.loiter_radius_param_type = mavutil.mavlink.MAV_PARAM_TYPE_INT16
         self.loiter_radius = 80.0  # Default loiter radius
         if (
-            self.drone.aircraft_type == 1
+            self.drone.aircraft_type == VehicleType.FIXED_WING.value
         ):  # Copter doesn't have loiter radius, only Plane
             self.getLoiterRadius()
 
@@ -263,7 +263,7 @@ class NavController:
 
         try:
             # drone.aircraft_type == 1 for fixed wing. Check customTypes.py
-            if self.drone.aircraft_type == 1:
+            if self.drone.aircraft_type == VehicleType.FIXED_WING.value:
                 with self.drone.sending_command_lock:
                     # https://mavlink.io/en/messages/common.html#MISSION_ITEM_INT
                     # https://ardupilot.org/dev/docs/plane-commands-in-guided-mode.html

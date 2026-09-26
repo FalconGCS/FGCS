@@ -18,6 +18,7 @@ from app.controllers.armController import ArmController
 from app.controllers.flightModesController import FlightModesController
 from app.controllers.frameController import FrameController
 from app.controllers.ftpController import FtpController
+from app.controllers.failsafeController import FailsafeController
 from app.controllers.gripperController import GripperController
 from app.controllers.missionController import MissionController
 from app.controllers.motorTestController import MotorTestController
@@ -394,6 +395,7 @@ class Drone:
         self.serialPortsController = SerialPortsController(self)
         self.navController = NavController(self)
         self.ftpController = FtpController(self)
+        self.failsafeController = FailsafeController(self)
 
     def _emitConnectionStatus(
         self, message: str, progress: float, sub_message: str = ""

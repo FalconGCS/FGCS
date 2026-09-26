@@ -5,7 +5,7 @@ from threading import current_thread
 from typing import TYPE_CHECKING, List, Union
 
 import serial
-from app.customTypes import Number, Response
+from app.customTypes import Number, Response, VehicleType
 from app.utils import commandAccepted, sendingCommandLock
 from pymavlink import mavutil
 
@@ -87,7 +87,7 @@ class FlightModesController:
                 "message": f"Invalid flight mode number, must be between 1 and 6 inclusive, got {mode_number}.",
             }
 
-        if self.drone.aircraft_type == 1:
+        if self.drone.aircraft_type == VehicleType.FIXED_WING.value:
             if (flight_mode < 0) or (flight_mode > 24):
                 return {
                     "success": False,
@@ -219,7 +219,7 @@ class FlightModesController:
 
         mode = mavutil.mavlink.COPTER_MODE_GUIDED
 
-        if self.drone.aircraft_type == 1:
+        if self.drone.aircraft_type == VehicleType.FIXED_WING.value:
             mode = mavutil.mavlink.PLANE_MODE_GUIDED
 
         return self.setCurrentFlightMode(mode)

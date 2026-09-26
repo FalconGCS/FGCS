@@ -4,6 +4,7 @@ from . import arm as arm
 from . import autopilot as autopilot
 from . import comPorts as comPorts
 from . import connections as connections
+from . import failsafe as failsafe
 from . import flightMode as flightMode
 from . import frames as frames
 from . import ftp as ftp

@@ -131,6 +131,7 @@ def test_setFlightMode_wrongModeNumber(
     }
 
 
+@pytest.mark.copter_only
 def test_setFlightMode_successfullySet(
     socketio_client: SocketIOTestClient, droneStatus
 ):
